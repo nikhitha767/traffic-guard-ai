@@ -24,14 +24,15 @@ import { usePrediction } from "@/context/PredictionContext";
 
 const ITEMS_PER_PAGE = 8;
 
-// Get unique locations from dataset
+// Get unique cities and locations from dataset
+const datasetCities = [...new Set(accidentDataset.map((r) => r.city))];
 const datasetLocations = [...new Set(accidentDataset.map((r) => r.location))];
 
 export default function Dataset() {
   const { latestPrediction } = usePrediction();
   const [searchQuery, setSearchQuery] = useState("");
   const [peakFilter, setPeakFilter] = useState<string>("all");
-  const [locationFilter, setLocationFilter] = useState<string>("all");
+  const [cityFilter, setCityFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
 
   // Get time period from prediction time
@@ -53,14 +54,17 @@ export default function Dataset() {
 
   const filteredData = useMemo(() => {
     return accidentDataset.filter((record) => {
+      const query = searchQuery.toLowerCase();
       const matchesSearch =
-        record.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.location.toLowerCase().includes(query) ||
+        record.city.toLowerCase().includes(query) ||
+        record.area.toLowerCase().includes(query) ||
         record.date.includes(searchQuery);
       const matchesPeak = peakFilter === "all" || record.peakHour === peakFilter;
-      const matchesLocation = locationFilter === "all" || record.location === locationFilter;
-      return matchesSearch && matchesPeak && matchesLocation;
+      const matchesCity = cityFilter === "all" || record.city === cityFilter;
+      return matchesSearch && matchesPeak && matchesCity;
     });
-  }, [searchQuery, peakFilter, locationFilter]);
+  }, [searchQuery, peakFilter, cityFilter]);
 
   const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
   const paginatedData = filteredData.slice(
@@ -170,7 +174,7 @@ export default function Dataset() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by location or date..."
+                placeholder="Search by city, area, or location..."
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -179,6 +183,28 @@ export default function Dataset() {
                 className="pl-10"
               />
             </div>
+            <Select
+              value={cityFilter}
+              onValueChange={(value) => {
+                setCityFilter(value);
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="w-full md:w-[180px]">
+                <SelectValue placeholder="Filter by City" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Cities</SelectItem>
+                {datasetCities.map((city) => (
+                  <SelectItem key={city} value={city}>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-3 w-3 text-muted-foreground" />
+                      {city}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select
               value={peakFilter}
               onValueChange={(value) => {
@@ -196,34 +222,6 @@ export default function Dataset() {
                 <SelectItem value="Off-Peak">Off-Peak</SelectItem>
               </SelectContent>
             </Select>
-            <Select
-              value={locationFilter}
-              onValueChange={(value) => {
-                setLocationFilter(value);
-                setCurrentPage(1);
-              }}
-            >
-              <SelectTrigger className="w-full md:w-[220px]">
-                <SelectValue placeholder="Filter by Location" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                {datasetLocations.map((loc) => (
-                  <SelectItem key={loc} value={loc}>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={cn("h-2 w-2 rounded-full", {
-                          "bg-danger": getLocationRisk(loc) === "high",
-                          "bg-warning": getLocationRisk(loc) === "medium",
-                          "bg-success": getLocationRisk(loc) === "low",
-                        })}
-                      />
-                      <span className="truncate max-w-[150px]">{loc}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </div>
 
@@ -234,8 +232,8 @@ export default function Dataset() {
               <TableRow className="bg-muted/50">
                 <TableHead className="font-semibold">Date</TableHead>
                 <TableHead className="font-semibold">Time</TableHead>
-              <TableHead className="font-semibold">Location</TableHead>
-                <TableHead className="font-semibold">Risk</TableHead>
+                <TableHead className="font-semibold">City</TableHead>
+                <TableHead className="font-semibold">Area / Location</TableHead>
                 <TableHead className="font-semibold text-center">Accidents</TableHead>
                 <TableHead className="font-semibold">Peak Hour</TableHead>
                 <TableHead className="font-semibold">Severity</TableHead>
@@ -244,37 +242,20 @@ export default function Dataset() {
             <TableBody>
               {paginatedData.length > 0 ? (
                 paginatedData.map((record) => {
-                  const locationRisk = getLocationRisk(record.location);
                   return (
                     <TableRow key={record.id} className="hover:bg-muted/30 transition-colors">
                       <TableCell className="font-medium">{record.date}</TableCell>
                       <TableCell>{record.time}</TableCell>
-                      <TableCell className="max-w-[200px]">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="truncate">{record.location}</span>
-                        </div>
-                      </TableCell>
                       <TableCell>
-                        <span
-                          className={cn(
-                            "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium",
-                            {
-                              "bg-danger/10 text-danger": locationRisk === "high",
-                              "bg-warning/10 text-warning": locationRisk === "medium",
-                              "bg-success/10 text-success": locationRisk === "low",
-                            }
-                          )}
-                        >
-                          <span
-                            className={cn("h-1.5 w-1.5 rounded-full", {
-                              "bg-danger": locationRisk === "high",
-                              "bg-warning": locationRisk === "medium",
-                              "bg-success": locationRisk === "low",
-                            })}
-                          />
-                          {locationRisk.charAt(0).toUpperCase() + locationRisk.slice(1)}
-                        </span>
+                        <Badge variant="outline" className="font-medium">
+                          {record.city}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-[250px]">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-sm">{record.area}</span>
+                          <span className="text-xs text-muted-foreground truncate">{record.location}</span>
+                        </div>
                       </TableCell>
                       <TableCell className="text-center">
                         <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm">
