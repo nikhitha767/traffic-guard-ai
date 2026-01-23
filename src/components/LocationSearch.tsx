@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Search, MapPin, Navigation, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Search, MapPin, Navigation, X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { locations, LocationData } from "@/lib/dummy-data";
 
@@ -8,6 +9,44 @@ interface LocationSearchProps {
   selectedLocation: LocationData | null;
   onLocationSelect: (location: LocationData) => void;
   onClear: () => void;
+}
+
+// Generate a dynamic location based on user input
+function generateLocationFromQuery(query: string): LocationData {
+  const queryLower = query.toLowerCase();
+  
+  // Simulate risk based on common keywords
+  let riskMultiplier = 1.0;
+  let baseRisk: "low" | "medium" | "high" = "medium";
+  let historicalAccidents = Math.floor(Math.random() * 30) + 15;
+  
+  // High risk areas
+  if (queryLower.includes("highway") || queryLower.includes("junction") || queryLower.includes("crossing") || queryLower.includes("main road")) {
+    riskMultiplier = 1.4;
+    baseRisk = "high";
+    historicalAccidents = Math.floor(Math.random() * 20) + 35;
+  }
+  // Medium risk areas  
+  else if (queryLower.includes("market") || queryLower.includes("bus") || queryLower.includes("station") || queryLower.includes("center") || queryLower.includes("central")) {
+    riskMultiplier = 1.2;
+    baseRisk = "medium";
+    historicalAccidents = Math.floor(Math.random() * 15) + 20;
+  }
+  // Low risk areas
+  else if (queryLower.includes("residential") || queryLower.includes("park") || queryLower.includes("colony") || queryLower.includes("nagar")) {
+    riskMultiplier = 0.7;
+    baseRisk = "low";
+    historicalAccidents = Math.floor(Math.random() * 10) + 5;
+  }
+
+  return {
+    id: `custom-${query.toLowerCase().replace(/\s+/g, "-")}`,
+    name: query,
+    riskMultiplier,
+    baseRisk,
+    historicalAccidents,
+    description: `City area - ${query}`,
+  };
 }
 
 export function LocationSearch({
@@ -24,6 +63,7 @@ export function LocationSearch({
   useEffect(() => {
     if (query.trim() === "") {
       setFilteredLocations([]);
+      setIsOpen(false);
       return;
     }
 
@@ -33,7 +73,7 @@ export function LocationSearch({
         loc.description.toLowerCase().includes(query.toLowerCase())
     );
     setFilteredLocations(filtered);
-    setIsOpen(filtered.length > 0);
+    setIsOpen(true);
   }, [query]);
 
   useEffect(() => {
@@ -58,6 +98,22 @@ export function LocationSearch({
     setIsOpen(false);
   };
 
+  const handleUseCustomLocation = () => {
+    if (query.trim()) {
+      const customLocation = generateLocationFromQuery(query.trim());
+      onLocationSelect(customLocation);
+      setQuery("");
+      setIsOpen(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && query.trim()) {
+      e.preventDefault();
+      handleUseCustomLocation();
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Search Input */}
@@ -66,7 +122,7 @@ export function LocationSearch({
         <Input
           ref={inputRef}
           type="text"
-          placeholder="Type address or location name..."
+          placeholder="Enter city, area or address (e.g., Vijayawada, MG Road...)"
           value={selectedLocation ? selectedLocation.name : query}
           onChange={(e) => {
             if (selectedLocation) {
@@ -75,8 +131,9 @@ export function LocationSearch({
             setQuery(e.target.value);
           }}
           onFocus={() => {
-            if (filteredLocations.length > 0) setIsOpen(true);
+            if (query.trim()) setIsOpen(true);
           }}
+          onKeyDown={handleKeyDown}
           className="pl-10 pr-10"
         />
         {(query || selectedLocation) && (
@@ -94,11 +151,39 @@ export function LocationSearch({
         )}
 
         {/* Dropdown Suggestions */}
-        {isOpen && filteredLocations.length > 0 && (
+        {isOpen && query.trim() !== "" && (
           <div
             ref={dropdownRef}
-            className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-[280px] overflow-y-auto"
+            className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-[320px] overflow-y-auto"
           >
+            {/* Custom Location Option */}
+            <button
+              type="button"
+              onClick={handleUseCustomLocation}
+              className="w-full flex items-center gap-3 p-3 bg-primary/5 hover:bg-primary/10 transition-colors text-left border-b border-border"
+            >
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Plus className="h-4 w-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm text-primary">
+                  Use "{query}" as location
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Get prediction for this city/area
+                </p>
+              </div>
+            </button>
+
+            {/* Matching Locations */}
+            {filteredLocations.length > 0 && (
+              <div className="border-b border-border py-1 px-3">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Matching Zones
+                </p>
+              </div>
+            )}
+            
             {filteredLocations.map((location) => (
               <button
                 key={location.id}
@@ -142,26 +227,10 @@ export function LocationSearch({
             ))}
           </div>
         )}
-
-        {/* No Results */}
-        {isOpen && query.trim() !== "" && filteredLocations.length === 0 && (
-          <div
-            ref={dropdownRef}
-            className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg p-4 text-center"
-          >
-            <MapPin className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">
-              No locations found for "{query}"
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Try searching for: Highway, Junction, Zone, etc.
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Map Preview */}
-      <div className="relative rounded-lg overflow-hidden border border-border bg-muted/30 h-[200px]">
+      <div className="relative rounded-lg overflow-hidden border border-border bg-muted/30 h-[220px]">
         {selectedLocation ? (
           <>
             {/* Simulated Map with Location */}
@@ -178,18 +247,23 @@ export function LocationSearch({
                 }}
               />
               {/* Roads */}
-              <div className="absolute top-1/2 left-0 right-0 h-1 bg-muted-foreground/20" />
-              <div className="absolute top-0 bottom-0 left-1/3 w-1 bg-muted-foreground/20" />
+              <div className="absolute top-1/2 left-0 right-0 h-1.5 bg-muted-foreground/30" />
+              <div className="absolute top-0 bottom-0 left-1/3 w-1.5 bg-muted-foreground/30" />
               <div className="absolute top-0 bottom-0 right-1/4 w-1 bg-muted-foreground/20" />
-              <div className="absolute top-1/4 left-0 right-0 h-0.5 bg-muted-foreground/10" />
-              <div className="absolute bottom-1/3 left-0 right-0 h-0.5 bg-muted-foreground/10" />
+              <div className="absolute top-1/4 left-0 right-0 h-0.5 bg-muted-foreground/15" />
+              <div className="absolute bottom-1/3 left-0 right-0 h-0.5 bg-muted-foreground/15" />
+              
+              {/* City name overlay */}
+              <div className="absolute top-3 left-3 bg-background/80 backdrop-blur-sm rounded-md px-2 py-1 border border-border">
+                <p className="text-xs font-medium text-foreground">{selectedLocation.name}</p>
+              </div>
             </div>
 
             {/* Location Marker */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full">
-              <div className="relative">
+              <div className="relative animate-bounce">
                 <MapPin
-                  className={cn("h-10 w-10 drop-shadow-lg", {
+                  className={cn("h-12 w-12 drop-shadow-lg", {
                     "text-danger": selectedLocation.baseRisk === "high",
                     "text-warning": selectedLocation.baseRisk === "medium",
                     "text-success": selectedLocation.baseRisk === "low",
@@ -199,7 +273,7 @@ export function LocationSearch({
                 />
                 <div
                   className={cn(
-                    "absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-1 rounded-full blur-sm",
+                    "absolute -bottom-1 left-1/2 -translate-x-1/2 w-6 h-2 rounded-full blur-sm",
                     {
                       "bg-danger/50": selectedLocation.baseRisk === "high",
                       "bg-warning/50": selectedLocation.baseRisk === "medium",
@@ -211,11 +285,11 @@ export function LocationSearch({
             </div>
 
             {/* Location Info Overlay */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background/95 to-transparent p-4">
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background/95 via-background/80 to-transparent p-4">
               <div className="flex items-center gap-3">
                 <div
                   className={cn(
-                    "h-10 w-10 rounded-lg flex items-center justify-center",
+                    "h-12 w-12 rounded-lg flex items-center justify-center",
                     {
                       "bg-danger/10": selectedLocation.baseRisk === "high",
                       "bg-warning/10": selectedLocation.baseRisk === "medium",
@@ -224,7 +298,7 @@ export function LocationSearch({
                   )}
                 >
                   <Navigation
-                    className={cn("h-5 w-5", {
+                    className={cn("h-6 w-6", {
                       "text-danger": selectedLocation.baseRisk === "high",
                       "text-warning": selectedLocation.baseRisk === "medium",
                       "text-success": selectedLocation.baseRisk === "low",
@@ -232,12 +306,29 @@ export function LocationSearch({
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm truncate">
+                  <p className="font-semibold text-foreground truncate">
                     {selectedLocation.name}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {selectedLocation.description} • {selectedLocation.historicalAccidents} historical accidents
+                  <p className="text-sm text-muted-foreground">
+                    {selectedLocation.description}
                   </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
+                        {
+                          "bg-danger/10 text-danger": selectedLocation.baseRisk === "high",
+                          "bg-warning/10 text-warning": selectedLocation.baseRisk === "medium",
+                          "bg-success/10 text-success": selectedLocation.baseRisk === "low",
+                        }
+                      )}
+                    >
+                      {selectedLocation.baseRisk.charAt(0).toUpperCase() + selectedLocation.baseRisk.slice(1)} Risk Zone
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      ~{selectedLocation.historicalAccidents} historical accidents
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -245,11 +336,13 @@ export function LocationSearch({
         ) : (
           /* Empty State */
           <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
-            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3">
-              <MapPin className="h-6 w-6" />
+            <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center mb-3">
+              <MapPin className="h-7 w-7" />
             </div>
-            <p className="text-sm font-medium">No location selected</p>
-            <p className="text-xs">Search and select a location above</p>
+            <p className="text-sm font-medium">Enter a city or area</p>
+            <p className="text-xs text-center px-4">
+              Type any location name like "Vijayawada" or "MG Road" to get accident predictions
+            </p>
           </div>
         )}
       </div>
