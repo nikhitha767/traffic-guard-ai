@@ -4,32 +4,50 @@ export interface AccidentRecord {
   date: string;
   time: string;
   location: string;
+  city: string;
+  area: string;
   accidentCount: number;
   peakHour: "Morning" | "Evening" | "Off-Peak";
   severity: "Minor" | "Moderate" | "Severe";
 }
 
 export const accidentDataset: AccidentRecord[] = [
-  { id: 1, date: "2024-01-15", time: "08:30", location: "Highway 101 - Junction A", accidentCount: 3, peakHour: "Morning", severity: "Moderate" },
-  { id: 2, date: "2024-01-15", time: "17:45", location: "Main Street Intersection", accidentCount: 2, peakHour: "Evening", severity: "Minor" },
-  { id: 3, date: "2024-01-16", time: "09:15", location: "Central Business District", accidentCount: 4, peakHour: "Morning", severity: "Severe" },
-  { id: 4, date: "2024-01-16", time: "14:00", location: "Industrial Zone Road", accidentCount: 1, peakHour: "Off-Peak", severity: "Minor" },
-  { id: 5, date: "2024-01-17", time: "07:45", location: "School Zone - West", accidentCount: 2, peakHour: "Morning", severity: "Moderate" },
-  { id: 6, date: "2024-01-17", time: "18:30", location: "Shopping Mall Exit", accidentCount: 5, peakHour: "Evening", severity: "Severe" },
-  { id: 7, date: "2024-01-18", time: "08:00", location: "Railway Crossing North", accidentCount: 1, peakHour: "Morning", severity: "Minor" },
-  { id: 8, date: "2024-01-18", time: "12:30", location: "Hospital Road", accidentCount: 2, peakHour: "Off-Peak", severity: "Moderate" },
-  { id: 9, date: "2024-01-19", time: "17:15", location: "Tech Park Entrance", accidentCount: 3, peakHour: "Evening", severity: "Moderate" },
-  { id: 10, date: "2024-01-19", time: "09:00", location: "University Gate", accidentCount: 2, peakHour: "Morning", severity: "Minor" },
-  { id: 11, date: "2024-01-20", time: "07:30", location: "Highway 101 - Junction B", accidentCount: 4, peakHour: "Morning", severity: "Severe" },
-  { id: 12, date: "2024-01-20", time: "18:00", location: "Stadium Road", accidentCount: 6, peakHour: "Evening", severity: "Severe" },
-  { id: 13, date: "2024-01-21", time: "08:45", location: "Airport Expressway", accidentCount: 2, peakHour: "Morning", severity: "Moderate" },
-  { id: 14, date: "2024-01-21", time: "16:30", location: "Market Area Junction", accidentCount: 3, peakHour: "Evening", severity: "Moderate" },
-  { id: 15, date: "2024-01-22", time: "10:00", location: "Residential Zone C", accidentCount: 1, peakHour: "Off-Peak", severity: "Minor" },
-  { id: 16, date: "2024-01-22", time: "17:00", location: "Bus Terminal Exit", accidentCount: 4, peakHour: "Evening", severity: "Severe" },
-  { id: 17, date: "2024-01-23", time: "08:15", location: "Office Complex Road", accidentCount: 3, peakHour: "Morning", severity: "Moderate" },
-  { id: 18, date: "2024-01-23", time: "13:45", location: "Park Avenue", accidentCount: 1, peakHour: "Off-Peak", severity: "Minor" },
-  { id: 19, date: "2024-01-24", time: "07:00", location: "Metro Station Area", accidentCount: 2, peakHour: "Morning", severity: "Minor" },
-  { id: 20, date: "2024-01-24", time: "18:45", location: "Entertainment District", accidentCount: 5, peakHour: "Evening", severity: "Severe" },
+  // Vijayawada
+  { id: 1, date: "2024-01-15", time: "08:30", location: "Benz Circle Junction", city: "Vijayawada", area: "Benz Circle", accidentCount: 4, peakHour: "Morning", severity: "Severe" },
+  { id: 2, date: "2024-01-15", time: "17:45", location: "MG Road Intersection", city: "Vijayawada", area: "MG Road", accidentCount: 3, peakHour: "Evening", severity: "Moderate" },
+  { id: 3, date: "2024-01-16", time: "09:15", location: "Eluru Road Flyover", city: "Vijayawada", area: "Eluru Road", accidentCount: 2, peakHour: "Morning", severity: "Minor" },
+  { id: 4, date: "2024-01-17", time: "18:30", location: "Bandar Road Junction", city: "Vijayawada", area: "Bandar Road", accidentCount: 5, peakHour: "Evening", severity: "Severe" },
+  { id: 5, date: "2024-01-18", time: "08:00", location: "Governorpet Market", city: "Vijayawada", area: "Governorpet", accidentCount: 2, peakHour: "Morning", severity: "Minor" },
+  
+  // Hyderabad
+  { id: 6, date: "2024-01-15", time: "08:45", location: "HITEC City Junction", city: "Hyderabad", area: "HITEC City", accidentCount: 6, peakHour: "Morning", severity: "Severe" },
+  { id: 7, date: "2024-01-16", time: "17:30", location: "Gachibowli Flyover", city: "Hyderabad", area: "Gachibowli", accidentCount: 4, peakHour: "Evening", severity: "Moderate" },
+  { id: 8, date: "2024-01-17", time: "09:00", location: "Madhapur Road", city: "Hyderabad", area: "Madhapur", accidentCount: 3, peakHour: "Morning", severity: "Moderate" },
+  { id: 9, date: "2024-01-18", time: "18:15", location: "Ameerpet Metro", city: "Hyderabad", area: "Ameerpet", accidentCount: 2, peakHour: "Evening", severity: "Minor" },
+  { id: 10, date: "2024-01-19", time: "07:45", location: "Secunderabad Station", city: "Hyderabad", area: "Secunderabad", accidentCount: 5, peakHour: "Morning", severity: "Severe" },
+  
+  // Chennai
+  { id: 11, date: "2024-01-15", time: "08:15", location: "Anna Salai Junction", city: "Chennai", area: "Anna Salai", accidentCount: 4, peakHour: "Morning", severity: "Moderate" },
+  { id: 12, date: "2024-01-16", time: "17:00", location: "T Nagar Signal", city: "Chennai", area: "T Nagar", accidentCount: 3, peakHour: "Evening", severity: "Moderate" },
+  { id: 13, date: "2024-01-17", time: "09:30", location: "OMR Toll Gate", city: "Chennai", area: "OMR", accidentCount: 5, peakHour: "Morning", severity: "Severe" },
+  { id: 14, date: "2024-01-18", time: "18:45", location: "Adyar Bridge", city: "Chennai", area: "Adyar", accidentCount: 2, peakHour: "Evening", severity: "Minor" },
+  
+  // Bangalore
+  { id: 15, date: "2024-01-15", time: "08:00", location: "Silk Board Junction", city: "Bangalore", area: "Silk Board", accidentCount: 7, peakHour: "Morning", severity: "Severe" },
+  { id: 16, date: "2024-01-16", time: "17:15", location: "Electronic City Flyover", city: "Bangalore", area: "Electronic City", accidentCount: 4, peakHour: "Evening", severity: "Moderate" },
+  { id: 17, date: "2024-01-17", time: "09:00", location: "Whitefield Main Road", city: "Bangalore", area: "Whitefield", accidentCount: 3, peakHour: "Morning", severity: "Moderate" },
+  { id: 18, date: "2024-01-18", time: "18:30", location: "Koramangala Junction", city: "Bangalore", area: "Koramangala", accidentCount: 2, peakHour: "Evening", severity: "Minor" },
+  
+  // Mumbai
+  { id: 19, date: "2024-01-15", time: "08:30", location: "Western Express Highway", city: "Mumbai", area: "Andheri", accidentCount: 5, peakHour: "Morning", severity: "Severe" },
+  { id: 20, date: "2024-01-16", time: "17:45", location: "Bandra Worli Sea Link", city: "Mumbai", area: "Bandra", accidentCount: 3, peakHour: "Evening", severity: "Moderate" },
+  { id: 21, date: "2024-01-17", time: "09:15", location: "Dadar TT Circle", city: "Mumbai", area: "Dadar", accidentCount: 4, peakHour: "Morning", severity: "Moderate" },
+  { id: 22, date: "2024-01-18", time: "18:00", location: "Powai Lake Road", city: "Mumbai", area: "Powai", accidentCount: 2, peakHour: "Evening", severity: "Minor" },
+  
+  // Delhi
+  { id: 23, date: "2024-01-15", time: "08:45", location: "ITO Junction", city: "Delhi", area: "ITO", accidentCount: 6, peakHour: "Morning", severity: "Severe" },
+  { id: 24, date: "2024-01-16", time: "17:30", location: "Connaught Place Ring", city: "Delhi", area: "Connaught Place", accidentCount: 4, peakHour: "Evening", severity: "Moderate" },
+  { id: 25, date: "2024-01-17", time: "09:00", location: "Nehru Place Flyover", city: "Delhi", area: "Nehru Place", accidentCount: 3, peakHour: "Morning", severity: "Moderate" },
 ];
 
 // Chart data
