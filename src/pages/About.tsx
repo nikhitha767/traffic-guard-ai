@@ -1,26 +1,29 @@
-import { useState, useEffect } from "react";
-import { MapPin, TrendingUp, Activity, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { MapPin, TrendingUp, Activity, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// Indian states data with accident statistics
-const indiaStatesData = [
-  { state: "Maharashtra", accidents: 85, color: "from-rose-500 to-pink-600" },
-  { state: "Tamil Nadu", accidents: 78, color: "from-amber-400 to-yellow-500" },
-  { state: "Uttar Pradesh", accidents: 72, color: "from-rose-500 to-pink-600" },
-  { state: "Karnataka", accidents: 68, color: "from-amber-400 to-yellow-500" },
-  { state: "Andhra Pradesh", accidents: 65, color: "from-rose-500 to-pink-600" },
-  { state: "Gujarat", accidents: 58, color: "from-amber-400 to-yellow-500" },
-  { state: "Rajasthan", accidents: 52, color: "from-rose-500 to-pink-600" },
-  { state: "Madhya Pradesh", accidents: 48, color: "from-amber-400 to-yellow-500" },
-  { state: "Kerala", accidents: 45, color: "from-rose-500 to-pink-600" },
-  { state: "West Bengal", accidents: 42, color: "from-amber-400 to-yellow-500" },
-  { state: "Telangana", accidents: 55, color: "from-rose-500 to-pink-600" },
-  { state: "Punjab", accidents: 38, color: "from-amber-400 to-yellow-500" },
-  { state: "Haryana", accidents: 35, color: "from-rose-500 to-pink-600" },
-  { state: "Bihar", accidents: 32, color: "from-amber-400 to-yellow-500" },
-  { state: "Odisha", accidents: 28, color: "from-rose-500 to-pink-600" },
-  { state: "Delhi", accidents: 62, color: "from-amber-400 to-yellow-500" },
+// Base Indian states data with accident statistics
+const baseStatesData = [
+  { state: "Maharashtra", baseAccidents: 85, color: "from-rose-500 to-pink-600" },
+  { state: "Tamil Nadu", baseAccidents: 78, color: "from-amber-400 to-yellow-500" },
+  { state: "Uttar Pradesh", baseAccidents: 72, color: "from-rose-500 to-pink-600" },
+  { state: "Karnataka", baseAccidents: 68, color: "from-amber-400 to-yellow-500" },
+  { state: "Andhra Pradesh", baseAccidents: 65, color: "from-rose-500 to-pink-600" },
+  { state: "Gujarat", baseAccidents: 58, color: "from-amber-400 to-yellow-500" },
+  { state: "Rajasthan", baseAccidents: 52, color: "from-rose-500 to-pink-600" },
+  { state: "Madhya Pradesh", baseAccidents: 48, color: "from-amber-400 to-yellow-500" },
+  { state: "Kerala", baseAccidents: 45, color: "from-rose-500 to-pink-600" },
+  { state: "West Bengal", baseAccidents: 42, color: "from-amber-400 to-yellow-500" },
+  { state: "Telangana", baseAccidents: 55, color: "from-rose-500 to-pink-600" },
+  { state: "Punjab", baseAccidents: 38, color: "from-amber-400 to-yellow-500" },
+  { state: "Haryana", baseAccidents: 35, color: "from-rose-500 to-pink-600" },
+  { state: "Bihar", baseAccidents: 32, color: "from-amber-400 to-yellow-500" },
+  { state: "Odisha", baseAccidents: 28, color: "from-rose-500 to-pink-600" },
+  { state: "Delhi", baseAccidents: 62, color: "from-amber-400 to-yellow-500" },
 ];
+
+// Days of the week
+const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 // Slide data for carousel
 const slides = [
@@ -48,11 +51,29 @@ export default function About() {
   const [animatedBars, setAnimatedBars] = useState<number[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [currentDay, setCurrentDay] = useState(new Date().getDay());
+  const [statesData, setStatesData] = useState(
+    baseStatesData.map((s) => ({ ...s, accidents: s.baseAccidents }))
+  );
+  const [lastUpdate, setLastUpdate] = useState(new Date());
+
+  // Generate random variation for day-wise updates
+  const generateDayWiseData = useCallback(() => {
+    return baseStatesData.map((state) => {
+      // Random variation between -15% to +15%
+      const variation = (Math.random() - 0.5) * 0.3;
+      const newAccidents = Math.round(state.baseAccidents * (1 + variation));
+      return {
+        ...state,
+        accidents: Math.min(100, Math.max(10, newAccidents)),
+      };
+    });
+  }, []);
 
   // Animate bars on mount with staggered effect
   useEffect(() => {
     const timers: NodeJS.Timeout[] = [];
-    indiaStatesData.forEach((_, index) => {
+    baseStatesData.forEach((_, index) => {
       const timer = setTimeout(() => {
         setAnimatedBars((prev) => [...prev, index]);
       }, 100 + index * 80);
@@ -61,11 +82,21 @@ export default function About() {
     return () => timers.forEach((t) => clearTimeout(t));
   }, []);
 
+  // Auto-update data every 5 seconds (simulating day-wise updates)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentDay((prev) => (prev + 1) % 7);
+      setStatesData(generateDayWiseData());
+      setLastUpdate(new Date());
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [generateDayWiseData]);
+
   // Auto-slide carousel
   useEffect(() => {
     const interval = setInterval(() => {
       nextSlide();
-    }, 5000);
+    }, 6000);
     return () => clearInterval(interval);
   }, [currentSlide]);
 
@@ -85,7 +116,7 @@ export default function About() {
     }, 300);
   };
 
-  const maxAccidents = Math.max(...indiaStatesData.map((d) => d.accidents));
+  const maxAccidents = Math.max(...statesData.map((d) => d.accidents));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 overflow-hidden">
@@ -195,6 +226,17 @@ export default function About() {
 
         {/* Animated Bar Chart */}
         <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 md:p-10 border border-white/10 shadow-2xl overflow-hidden">
+          {/* Day indicator - shows current day with auto-update */}
+          <div className="absolute top-6 left-6 flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-gradient-to-r from-primary/20 to-accent/20 backdrop-blur-sm rounded-full px-4 py-2 border border-white/10">
+              <Calendar className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold text-white">{daysOfWeek[currentDay]}</span>
+            </div>
+            <div className="text-xs text-white/40">
+              Updated: {lastUpdate.toLocaleTimeString()}
+            </div>
+          </div>
+
           {/* Background map silhouette effect */}
           <div className="absolute inset-0 opacity-5">
             <div className="absolute right-0 top-0 w-1/2 h-full bg-gradient-to-l from-white/20 to-transparent" />
@@ -226,9 +268,8 @@ export default function About() {
           {/* Chart Container */}
           <div className="relative ml-8 mt-16">
             <div className="flex items-end justify-center gap-1 md:gap-2 h-[300px] md:h-[400px]">
-              {indiaStatesData.map((state, index) => {
+              {statesData.map((state, index) => {
                 const barHeight = (state.accidents / maxAccidents) * 300;
-                const barHeightMd = (state.accidents / maxAccidents) * 400;
                 const isAnimated = animatedBars.includes(index);
 
                 return (
@@ -238,19 +279,19 @@ export default function About() {
                   >
                     {/* Bar */}
                     <div
-                      className={`relative w-full rounded-t-lg bg-gradient-to-t ${state.color} shadow-lg transition-all duration-700 ease-out cursor-pointer hover:opacity-90`}
+                      className={`relative w-full rounded-t-lg bg-gradient-to-t ${state.color} shadow-lg transition-all duration-500 ease-out cursor-pointer hover:opacity-90`}
                       style={{
                         height: isAnimated ? `${barHeight}px` : "0px",
-                        transitionDelay: `${index * 50}ms`,
                       }}
                     >
                       {/* Glow effect */}
                       <div className="absolute inset-0 rounded-t-lg bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
 
-                      {/* Value tooltip */}
-                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white text-slate-900 px-2 py-1 rounded text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-lg">
-                        {state.accidents}%
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-white" />
+                      {/* Value tooltip with full state name */}
+                      <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-white text-slate-900 px-3 py-2 rounded-lg text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-xl z-20">
+                        <div className="text-sm font-bold text-slate-800">{state.state}</div>
+                        <div className="text-lg font-extrabold text-primary">{state.accidents}%</div>
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-white" />
                       </div>
 
                       {/* Shimmer effect */}
