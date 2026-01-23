@@ -1,15 +1,29 @@
 import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Search, MapPin, Navigation, X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { locations, LocationData } from "@/lib/dummy-data";
+import { LeafletMap } from "./LeafletMap";
 
 interface LocationSearchProps {
   selectedLocation: LocationData | null;
   onLocationSelect: (location: LocationData) => void;
   onClear: () => void;
 }
+
+// City coordinates for custom locations
+const cityCoordinates: Record<string, [number, number]> = {
+  vijayawada: [16.5062, 80.6480],
+  hyderabad: [17.3850, 78.4867],
+  chennai: [13.0827, 80.2707],
+  bangalore: [12.9716, 77.5946],
+  bengaluru: [12.9716, 77.5946],
+  mumbai: [19.0760, 72.8777],
+  delhi: [28.6139, 77.2090],
+  kolkata: [22.5726, 88.3639],
+  pune: [18.5204, 73.8567],
+  ahmedabad: [23.0225, 72.5714],
+};
 
 // Generate a dynamic location based on user input
 function generateLocationFromQuery(query: string): LocationData {
@@ -19,6 +33,19 @@ function generateLocationFromQuery(query: string): LocationData {
   let riskMultiplier = 1.0;
   let baseRisk: "low" | "medium" | "high" = "medium";
   let historicalAccidents = Math.floor(Math.random() * 30) + 15;
+  
+  // Find coordinates based on city name in query
+  let coordinates: [number, number] | undefined;
+  for (const [city, coords] of Object.entries(cityCoordinates)) {
+    if (queryLower.includes(city)) {
+      coordinates = coords;
+      break;
+    }
+  }
+  // Default to Vijayawada if no city found
+  if (!coordinates) {
+    coordinates = [16.5062, 80.6480];
+  }
   
   // High risk areas
   if (queryLower.includes("highway") || queryLower.includes("junction") || queryLower.includes("crossing") || queryLower.includes("main road")) {
@@ -46,6 +73,7 @@ function generateLocationFromQuery(query: string): LocationData {
     baseRisk,
     historicalAccidents,
     description: `City area - ${query}`,
+    coordinates,
   };
 }
 
@@ -230,62 +258,18 @@ export function LocationSearch({
       </div>
 
       {/* Map Preview */}
-      <div className="relative rounded-lg overflow-hidden border border-border bg-muted/30 h-[220px]">
+      <div className="relative rounded-lg overflow-hidden border border-border bg-muted/30 h-[280px]">
         {selectedLocation ? (
           <>
-            {/* Simulated Map with Location */}
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-accent/5 to-primary/10">
-              {/* Grid pattern for map effect */}
-              <div
-                className="absolute inset-0 opacity-20"
-                style={{
-                  backgroundImage: `
-                    linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px),
-                    linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px)
-                  `,
-                  backgroundSize: "40px 40px",
-                }}
-              />
-              {/* Roads */}
-              <div className="absolute top-1/2 left-0 right-0 h-1.5 bg-muted-foreground/30" />
-              <div className="absolute top-0 bottom-0 left-1/3 w-1.5 bg-muted-foreground/30" />
-              <div className="absolute top-0 bottom-0 right-1/4 w-1 bg-muted-foreground/20" />
-              <div className="absolute top-1/4 left-0 right-0 h-0.5 bg-muted-foreground/15" />
-              <div className="absolute bottom-1/3 left-0 right-0 h-0.5 bg-muted-foreground/15" />
-              
-              {/* City name overlay */}
-              <div className="absolute top-3 left-3 bg-background/80 backdrop-blur-sm rounded-md px-2 py-1 border border-border">
-                <p className="text-xs font-medium text-foreground">{selectedLocation.name}</p>
-              </div>
-            </div>
-
-            {/* Location Marker */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full">
-              <div className="relative animate-bounce">
-                <MapPin
-                  className={cn("h-12 w-12 drop-shadow-lg", {
-                    "text-danger": selectedLocation.baseRisk === "high",
-                    "text-warning": selectedLocation.baseRisk === "medium",
-                    "text-success": selectedLocation.baseRisk === "low",
-                  })}
-                  fill="currentColor"
-                  strokeWidth={1.5}
-                />
-                <div
-                  className={cn(
-                    "absolute -bottom-1 left-1/2 -translate-x-1/2 w-6 h-2 rounded-full blur-sm",
-                    {
-                      "bg-danger/50": selectedLocation.baseRisk === "high",
-                      "bg-warning/50": selectedLocation.baseRisk === "medium",
-                      "bg-success/50": selectedLocation.baseRisk === "low",
-                    }
-                  )}
-                />
-              </div>
-            </div>
-
+            <LeafletMap
+              center={selectedLocation.coordinates || [16.5062, 80.6480]}
+              markerPosition={selectedLocation.coordinates || [16.5062, 80.6480]}
+              markerColor={selectedLocation.baseRisk}
+              locationName={selectedLocation.name}
+              zoom={14}
+            />
             {/* Location Info Overlay */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background/95 via-background/80 to-transparent p-4">
+            <div className="absolute bottom-0 left-0 right-0 z-[1000] bg-gradient-to-t from-background/95 via-background/80 to-transparent p-4">
               <div className="flex items-center gap-3">
                 <div
                   className={cn(
@@ -334,16 +318,10 @@ export function LocationSearch({
             </div>
           </>
         ) : (
-          /* Empty State */
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
-            <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center mb-3">
-              <MapPin className="h-7 w-7" />
-            </div>
-            <p className="text-sm font-medium">Enter a city or area</p>
-            <p className="text-xs text-center px-4">
-              Type any location name like "Vijayawada" or "MG Road" to get accident predictions
-            </p>
-          </div>
+          <LeafletMap
+            center={[16.5062, 80.6480]}
+            zoom={11}
+          />
         )}
       </div>
     </div>

@@ -110,29 +110,41 @@ export interface LocationData {
   baseRisk: "low" | "medium" | "high";
   historicalAccidents: number;
   description: string;
+  coordinates?: [number, number]; // [latitude, longitude]
 }
 
 export const locations: LocationData[] = [
-  { id: "highway-101-a", name: "Highway 101 - Junction A", riskMultiplier: 1.5, baseRisk: "high", historicalAccidents: 45, description: "High-speed highway junction" },
-  { id: "highway-101-b", name: "Highway 101 - Junction B", riskMultiplier: 1.4, baseRisk: "high", historicalAccidents: 42, description: "Major highway interchange" },
-  { id: "main-street", name: "Main Street Intersection", riskMultiplier: 1.2, baseRisk: "medium", historicalAccidents: 28, description: "Central city intersection" },
-  { id: "cbd", name: "Central Business District", riskMultiplier: 1.3, baseRisk: "high", historicalAccidents: 38, description: "High traffic commercial zone" },
-  { id: "industrial-zone", name: "Industrial Zone Road", riskMultiplier: 0.8, baseRisk: "low", historicalAccidents: 12, description: "Industrial area with truck traffic" },
-  { id: "school-zone-west", name: "School Zone - West", riskMultiplier: 1.1, baseRisk: "medium", historicalAccidents: 22, description: "School area with pedestrian crossings" },
-  { id: "shopping-mall", name: "Shopping Mall Exit", riskMultiplier: 1.4, baseRisk: "high", historicalAccidents: 40, description: "High congestion shopping area" },
-  { id: "railway-crossing", name: "Railway Crossing North", riskMultiplier: 0.9, baseRisk: "low", historicalAccidents: 15, description: "Controlled railway crossing" },
-  { id: "hospital-road", name: "Hospital Road", riskMultiplier: 1.0, baseRisk: "medium", historicalAccidents: 20, description: "Hospital access road" },
-  { id: "tech-park", name: "Tech Park Entrance", riskMultiplier: 1.2, baseRisk: "medium", historicalAccidents: 25, description: "IT corridor entrance" },
-  { id: "university-gate", name: "University Gate", riskMultiplier: 1.0, baseRisk: "medium", historicalAccidents: 18, description: "University main entrance" },
-  { id: "stadium-road", name: "Stadium Road", riskMultiplier: 1.5, baseRisk: "high", historicalAccidents: 48, description: "Event venue access road" },
-  { id: "airport-expressway", name: "Airport Expressway", riskMultiplier: 1.3, baseRisk: "medium", historicalAccidents: 30, description: "Airport access expressway" },
-  { id: "market-junction", name: "Market Area Junction", riskMultiplier: 1.2, baseRisk: "medium", historicalAccidents: 26, description: "Busy market intersection" },
-  { id: "residential-c", name: "Residential Zone C", riskMultiplier: 0.6, baseRisk: "low", historicalAccidents: 8, description: "Residential neighborhood" },
-  { id: "bus-terminal", name: "Bus Terminal Exit", riskMultiplier: 1.3, baseRisk: "high", historicalAccidents: 35, description: "Public transport hub" },
-  { id: "office-complex", name: "Office Complex Road", riskMultiplier: 1.1, baseRisk: "medium", historicalAccidents: 24, description: "Corporate office area" },
-  { id: "park-avenue", name: "Park Avenue", riskMultiplier: 0.7, baseRisk: "low", historicalAccidents: 10, description: "Park adjacent road" },
-  { id: "metro-station", name: "Metro Station Area", riskMultiplier: 1.0, baseRisk: "medium", historicalAccidents: 19, description: "Metro station vicinity" },
-  { id: "entertainment-district", name: "Entertainment District", riskMultiplier: 1.4, baseRisk: "high", historicalAccidents: 44, description: "Nightlife and entertainment zone" },
+  // Vijayawada locations
+  { id: "benz-circle", name: "Benz Circle Junction", riskMultiplier: 1.5, baseRisk: "high", historicalAccidents: 45, description: "Major highway junction", coordinates: [16.5062, 80.6480] },
+  { id: "mg-road-vijayawada", name: "MG Road, Vijayawada", riskMultiplier: 1.3, baseRisk: "high", historicalAccidents: 38, description: "Central city road", coordinates: [16.5180, 80.6260] },
+  { id: "eluru-road", name: "Eluru Road", riskMultiplier: 1.2, baseRisk: "medium", historicalAccidents: 28, description: "Major arterial road", coordinates: [16.5150, 80.6180] },
+  { id: "bandar-road", name: "Bandar Road Junction", riskMultiplier: 1.4, baseRisk: "high", historicalAccidents: 42, description: "High traffic junction", coordinates: [16.5089, 80.6200] },
+  { id: "governorpet", name: "Governorpet Market", riskMultiplier: 1.1, baseRisk: "medium", historicalAccidents: 22, description: "Busy market area", coordinates: [16.5156, 80.6178] },
+  
+  // Hyderabad locations
+  { id: "hitec-city", name: "HITEC City Junction", riskMultiplier: 1.4, baseRisk: "high", historicalAccidents: 48, description: "IT corridor junction", coordinates: [17.4435, 78.3772] },
+  { id: "gachibowli", name: "Gachibowli Flyover", riskMultiplier: 1.3, baseRisk: "medium", historicalAccidents: 35, description: "Major flyover", coordinates: [17.4401, 78.3489] },
+  { id: "madhapur", name: "Madhapur Road", riskMultiplier: 1.2, baseRisk: "medium", historicalAccidents: 30, description: "Tech park area", coordinates: [17.4484, 78.3908] },
+  { id: "ameerpet", name: "Ameerpet Metro", riskMultiplier: 1.1, baseRisk: "medium", historicalAccidents: 25, description: "Metro station area", coordinates: [17.4375, 78.4483] },
+  { id: "secunderabad", name: "Secunderabad Station", riskMultiplier: 1.5, baseRisk: "high", historicalAccidents: 50, description: "Railway station area", coordinates: [17.4399, 78.5011] },
+  
+  // Chennai locations
+  { id: "anna-salai", name: "Anna Salai Junction", riskMultiplier: 1.3, baseRisk: "high", historicalAccidents: 40, description: "Main city arterial", coordinates: [13.0604, 80.2496] },
+  { id: "t-nagar", name: "T Nagar Signal", riskMultiplier: 1.2, baseRisk: "medium", historicalAccidents: 32, description: "Shopping district", coordinates: [13.0418, 80.2341] },
+  { id: "omr", name: "OMR Toll Gate", riskMultiplier: 1.4, baseRisk: "high", historicalAccidents: 45, description: "IT expressway", coordinates: [12.9165, 80.2274] },
+  
+  // Bangalore locations
+  { id: "silk-board", name: "Silk Board Junction", riskMultiplier: 1.6, baseRisk: "high", historicalAccidents: 55, description: "Most congested junction", coordinates: [12.9177, 77.6238] },
+  { id: "electronic-city", name: "Electronic City Flyover", riskMultiplier: 1.3, baseRisk: "medium", historicalAccidents: 35, description: "Tech park flyover", coordinates: [12.8458, 77.6692] },
+  { id: "whitefield", name: "Whitefield Main Road", riskMultiplier: 1.2, baseRisk: "medium", historicalAccidents: 28, description: "IT hub area", coordinates: [12.9698, 77.7500] },
+  
+  // Mumbai locations
+  { id: "western-express", name: "Western Express Highway", riskMultiplier: 1.5, baseRisk: "high", historicalAccidents: 52, description: "Major highway", coordinates: [19.1136, 72.8697] },
+  { id: "bandra-worli", name: "Bandra Worli Sea Link", riskMultiplier: 1.2, baseRisk: "medium", historicalAccidents: 25, description: "Sea link bridge", coordinates: [19.0380, 72.8190] },
+  
+  // Delhi locations
+  { id: "ito", name: "ITO Junction", riskMultiplier: 1.5, baseRisk: "high", historicalAccidents: 48, description: "Central Delhi junction", coordinates: [28.6289, 77.2405] },
+  { id: "connaught-place", name: "Connaught Place Ring", riskMultiplier: 1.3, baseRisk: "medium", historicalAccidents: 35, description: "Commercial hub", coordinates: [28.6315, 77.2167] },
 ];
 
 // Prediction simulation with location
