@@ -47,7 +47,6 @@ export function LeafletMap({
       dragging: false,
       touchZoom: true,
       doubleClickZoom: true,
-      tap: false,
     }).setView(center, zoom);
 
     // Add OpenStreetMap tiles
