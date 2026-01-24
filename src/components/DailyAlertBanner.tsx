@@ -1,14 +1,20 @@
 import { useState, useEffect } from "react";
-import { AlertTriangle, X, Sparkles, MapPin, Clock } from "lucide-react";
+import { AlertTriangle, X, Sparkles, MapPin, Clock, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+interface StateRanking {
+  rank: number;
+  state: string;
+  accidents: number;
+  isCritical: boolean;
+}
 
 interface AlertData {
   alert: string;
   date: string;
   day: string;
   totalAccidents?: number;
-  topState?: string;
-  topStateAccidents?: number;
+  top7States?: StateRanking[];
   highRiskStates?: string[];
   isPeakHour?: boolean;
 }
@@ -126,18 +132,47 @@ export function DailyAlertBanner() {
                 {alertData.alert}
               </p>
 
-              {/* Additional info row */}
-              {alertData.topState && (
-                <div className="flex flex-wrap items-center gap-3 mt-2 text-white/90 text-xs">
-                  <span className="inline-flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    Highest Risk: {alertData.topState}
-                  </span>
-                  {alertData.totalAccidents && (
-                    <span className="inline-flex items-center gap-1">
-                      📊 {alertData.totalAccidents} predicted incidents
+              {/* Top 7 Danger States */}
+              {alertData.top7States && alertData.top7States.length > 0 && (
+                <div className="mt-3 pt-2 border-t border-white/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="h-4 w-4 text-white" />
+                    <span className="text-white font-semibold text-xs uppercase tracking-wider">
+                      Top 7 Danger Zone States Today
                     </span>
-                  )}
+                    {alertData.totalAccidents && (
+                      <span className="ml-auto text-white/80 text-xs">
+                        Total: {alertData.totalAccidents} incidents
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+                    {alertData.top7States.map((state) => (
+                      <div 
+                        key={state.rank}
+                        className={cn(
+                          "flex flex-col items-center p-2 rounded-lg text-center",
+                          state.isCritical 
+                            ? "bg-red-600/50 animate-pulse" 
+                            : "bg-white/10"
+                        )}
+                      >
+                        <span className="text-lg font-bold text-white">
+                          {state.rank === 1 ? "🥇" : state.rank === 2 ? "🥈" : state.rank === 3 ? "🥉" : `#${state.rank}`}
+                        </span>
+                        <span className="text-white font-medium text-xs truncate w-full">
+                          {state.state}
+                        </span>
+                        <span className={cn(
+                          "text-xs font-bold",
+                          state.isCritical ? "text-yellow-200" : "text-white/80"
+                        )}>
+                          {state.accidents}
+                          {state.isCritical && " ⚠️"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

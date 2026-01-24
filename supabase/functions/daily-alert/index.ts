@@ -52,26 +52,44 @@ serve(async (req) => {
     }));
 
     const totalAccidents = todayData.reduce((sum, s) => sum + s.accidents, 0);
+    const sortedStates = [...todayData].sort((a, b) => b.accidents - a.accidents);
+    const top7States = sortedStates.slice(0, 7);
     const highRiskStates = todayData.filter(s => s.accidents > 100).map(s => s.state);
-    const topState = todayData.sort((a, b) => b.accidents - a.accidents)[0];
 
-    const systemPrompt = `You are a traffic safety AI analyst. Generate a brief, urgent-sounding daily traffic accident alert for India. 
-Keep it concise (2-3 sentences max). Include:
-1. Today's date and day
-2. Total accident predictions across states
-3. Highest risk state with count
-4. A safety recommendation
+    const systemPrompt = `You are a traffic safety AI analyst for India. Generate a REALISTIC and URGENT daily traffic accident alert.
+Your response must be genuine, data-driven, and formatted as a proper safety bulletin.
 
-Use alert-style language. Be direct and informative.`;
+Requirements:
+1. Start with today's date and day
+2. Announce total predicted accidents across India
+3. List the TOP 7 DANGER ZONE STATES in ranked order (1st to 7th) with their predicted accident counts
+4. Mark states with 100+ accidents as CRITICAL ALERT
+5. End with a strong safety advisory
 
-    const userPrompt = `Generate today's traffic accident alert for ${dayOfWeek}, ${dateStr}.
+Format the 7 states clearly numbered like:
+🥇 1st: [State] - [X] accidents (CRITICAL if >100)
+🥈 2nd: [State] - [X] accidents
+... and so on
 
-Data summary:
-- Total predicted accidents today: ${totalAccidents}
-- Highest risk state: ${topState.state} with ${topState.accidents} predicted accidents
-- High-risk states (>100 accidents): ${highRiskStates.join(', ') || 'None'}
-- Current time: ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-- Peak hours active: ${hourVariation > 1 ? 'Yes' : 'No'}`;
+Make it sound like an official government traffic safety bulletin. Be serious and factual.`;
+
+    const top7StatesFormatted = top7States.map((s, i) => 
+      `${i + 1}. ${s.state}: ${s.accidents} predicted accidents${s.accidents > 100 ? ' (CRITICAL)' : ''}`
+    ).join('\n');
+
+    const userPrompt = `Generate today's official traffic accident danger alert for ${dayOfWeek}, ${dateStr}.
+
+REAL-TIME DATA SUMMARY:
+- Total predicted accidents across India: ${totalAccidents}
+- Current time: ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} IST
+- Peak hours status: ${hourVariation > 1 ? 'ACTIVE - High traffic period' : 'Normal traffic period'}
+
+TOP 7 DANGER ZONE STATES (ranked by accident probability):
+${top7StatesFormatted}
+
+Critical alert states (>100 accidents): ${highRiskStates.length > 0 ? highRiskStates.join(', ') : 'None'}
+
+Generate a formal, urgent safety bulletin with this data. Include all 7 states with their rankings and counts.`;
 
     console.log("Calling AI gateway for daily alert generation...");
 
@@ -87,15 +105,18 @@ Data summary:
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        max_tokens: 200,
+        max_tokens: 500,
       }),
     });
+
+    const top7Fallback = top7States.map((s, i) => `${i+1}. ${s.state} (${s.accidents})`).join(', ');
 
     if (!response.ok) {
       if (response.status === 429) {
         return new Response(JSON.stringify({ 
           error: "Rate limit exceeded", 
-          fallbackAlert: `⚠️ ${dayOfWeek}, ${dateStr}: ${totalAccidents} accidents predicted across India. ${topState.state} leads with ${topState.accidents}. Drive safely during peak hours.`
+          fallbackAlert: `⚠️ ${dayOfWeek}, ${dateStr}: ${totalAccidents} accidents predicted. Top danger zones: ${top7Fallback}`,
+          top7States: top7States.map((s, i) => ({ rank: i + 1, state: s.state, accidents: s.accidents, isCritical: s.accidents > 100 }))
         }), {
           status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -104,7 +125,8 @@ Data summary:
       if (response.status === 402) {
         return new Response(JSON.stringify({ 
           error: "Payment required", 
-          fallbackAlert: `⚠️ ${dayOfWeek}, ${dateStr}: ${totalAccidents} accidents predicted across India. ${topState.state} leads with ${topState.accidents}. Stay alert on roads.`
+          fallbackAlert: `⚠️ ${dayOfWeek}, ${dateStr}: ${totalAccidents} accidents predicted. Top danger zones: ${top7Fallback}`,
+          top7States: top7States.map((s, i) => ({ rank: i + 1, state: s.state, accidents: s.accidents, isCritical: s.accidents > 100 }))
         }), {
           status: 402,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -117,7 +139,7 @@ Data summary:
 
     const data = await response.json();
     const alertMessage = data.choices?.[0]?.message?.content || 
-      `⚠️ ${dayOfWeek}, ${dateStr}: ${totalAccidents} accidents predicted across India. ${topState.state} has highest risk with ${topState.accidents} predicted incidents.`;
+      `⚠️ ${dayOfWeek}, ${dateStr}: ${totalAccidents} accidents predicted across India. Top danger zones: ${top7Fallback}`;
 
     console.log("Successfully generated alert:", alertMessage);
 
@@ -126,8 +148,12 @@ Data summary:
       date: dateStr,
       day: dayOfWeek,
       totalAccidents,
-      topState: topState.state,
-      topStateAccidents: topState.accidents,
+      top7States: top7States.map((s, i) => ({
+        rank: i + 1,
+        state: s.state,
+        accidents: s.accidents,
+        isCritical: s.accidents > 100
+      })),
       highRiskStates,
       isPeakHour: hourVariation > 1,
       generatedAt: now.toISOString()
