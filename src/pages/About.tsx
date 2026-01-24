@@ -22,8 +22,7 @@ const baseStatesData = [
   { state: "Delhi", baseAccidents: 62, color: "from-amber-400 to-yellow-500" },
 ];
 
-// Days of the week
-const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+// Slide data for carousel
 
 // Slide data for carousel
 const slides = [
@@ -51,11 +50,10 @@ export default function About() {
   const [animatedBars, setAnimatedBars] = useState<number[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [currentDay, setCurrentDay] = useState(new Date().getDay());
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [statesData, setStatesData] = useState(
     baseStatesData.map((s) => ({ ...s, accidents: s.baseAccidents }))
   );
-  const [lastUpdate, setLastUpdate] = useState(new Date());
 
   // Generate random variation for day-wise updates
   const generateDayWiseData = useCallback(() => {
@@ -82,13 +80,19 @@ export default function About() {
     return () => timers.forEach((t) => clearTimeout(t));
   }, []);
 
-  // Auto-update data every 5 seconds (simulating day-wise updates)
+  // Live time update every second
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentDay((prev) => (prev + 1) % 7);
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Update data every minute based on real time
+  useEffect(() => {
+    const interval = setInterval(() => {
       setStatesData(generateDayWiseData());
-      setLastUpdate(new Date());
-    }, 5000);
+    }, 60000); // Update every minute
     return () => clearInterval(interval);
   }, [generateDayWiseData]);
 
@@ -226,14 +230,19 @@ export default function About() {
 
         {/* Animated Bar Chart */}
         <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 md:p-10 border border-white/10 shadow-2xl overflow-hidden">
-          {/* Day indicator - shows current day with auto-update */}
+          {/* Live day and time indicator */}
           <div className="absolute top-6 left-6 flex items-center gap-3">
             <div className="flex items-center gap-2 bg-gradient-to-r from-primary/20 to-accent/20 backdrop-blur-sm rounded-full px-4 py-2 border border-white/10">
               <Calendar className="h-4 w-4 text-primary" />
-              <span className="text-sm font-semibold text-white">{daysOfWeek[currentDay]}</span>
+              <span className="text-sm font-semibold text-white">
+                {currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}
+              </span>
             </div>
-            <div className="text-xs text-white/40">
-              Updated: {lastUpdate.toLocaleTimeString()}
+            <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-3 py-1.5 border border-white/10">
+              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="text-sm font-mono text-white">
+                {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </span>
             </div>
           </div>
 
