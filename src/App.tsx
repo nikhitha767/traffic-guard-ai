@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { PredictionProvider } from "@/context/PredictionContext";
+import { DailyAlertBanner } from "@/components/DailyAlertBanner";
 import Home from "./pages/Home";
 import Dataset from "./pages/Dataset";
 import Prediction from "./pages/Prediction";
@@ -18,6 +19,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <PredictionProvider>
+        <DailyAlertBanner />
         <Toaster />
         <Sonner />
         <BrowserRouter>
