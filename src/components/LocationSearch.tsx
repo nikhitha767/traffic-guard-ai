@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, MapPin, Navigation, X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { locations, LocationData } from "@/lib/dummy-data";
+import { LocationData } from "@/types";
+import { usePrediction } from "@/context/PredictionContext";
 import { LeafletMap } from "./LeafletMap";
 
 interface LocationSearchProps {
@@ -26,27 +27,42 @@ const cityCoordinates: Record<string, [number, number]> = {
 };
 
 // Generate a dynamic location based on user input
-function generateLocationFromQuery(query: string): LocationData {
+async function generateLocationFromQuery(query: string): Promise<LocationData> {
   const queryLower = query.toLowerCase();
-  
-  // Simulate risk based on common keywords
+
+  // Simulate risk base on common keywords
   let riskMultiplier = 1.0;
   let baseRisk: "low" | "medium" | "high" = "medium";
   let historicalAccidents = Math.floor(Math.random() * 30) + 15;
-  
-  // Find coordinates based on city name in query
+
   let coordinates: [number, number] | undefined;
-  for (const [city, coords] of Object.entries(cityCoordinates)) {
-    if (queryLower.includes(city)) {
-      coordinates = coords;
-      break;
+
+  // Fetch real coordinates safely using Open-Meteo Geocoding (No CORS/User-Agent restrictions)
+  try {
+    const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=en&format=json`);
+    const data = await res.json();
+    if (data && data.results && data.results.length > 0) {
+      coordinates = [data.results[0].latitude, data.results[0].longitude];
+    }
+  } catch (error) {
+    console.error("Geocoding failed:", error);
+  }
+
+  // Find coordinates based on city name in query (Fallback)
+  if (!coordinates) {
+    for (const [city, coords] of Object.entries(cityCoordinates)) {
+      if (queryLower.includes(city)) {
+        coordinates = coords;
+        break;
+      }
     }
   }
-  // Default to Vijayawada if no city found
+
+  // Default to Vijayawada if no city found at all
   if (!coordinates) {
     coordinates = [16.5062, 80.6480];
   }
-  
+
   // High risk areas
   if (queryLower.includes("highway") || queryLower.includes("junction") || queryLower.includes("crossing") || queryLower.includes("main road")) {
     riskMultiplier = 1.4;
@@ -84,9 +100,12 @@ export function LocationSearch({
 }: LocationSearchProps) {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [filteredLocations, setFilteredLocations] = useState<LocationData[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const { predictionHistory } = usePrediction();
 
   useEffect(() => {
     if (query.trim() === "") {
@@ -95,14 +114,33 @@ export function LocationSearch({
       return;
     }
 
-    const filtered = locations.filter(
+    // Extract unique locations from prediction history
+    const historyLocations: LocationData[] = [];
+    const seen = new Set<string>();
+
+    predictionHistory.forEach((p) => {
+      const name = p.location?.name;
+      if (name && !seen.has(name.toLowerCase())) {
+        seen.add(name.toLowerCase());
+        historyLocations.push({
+          id: `hist-${name}`,
+          name: name,
+          riskMultiplier: 1.0,
+          baseRisk: p.riskLevel,
+          historicalAccidents: p.predictedCount || 0,
+          description: "Previously searched location",
+          coordinates: p.location?.coordinates || [16.5062, 80.6480]
+        });
+      }
+    });
+
+    const filtered = historyLocations.filter(
       (loc) =>
-        loc.name.toLowerCase().includes(query.toLowerCase()) ||
-        loc.description.toLowerCase().includes(query.toLowerCase())
+        loc.name.toLowerCase().includes(query.toLowerCase())
     );
     setFilteredLocations(filtered);
     setIsOpen(true);
-  }, [query]);
+  }, [query, predictionHistory]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -126,17 +164,19 @@ export function LocationSearch({
     setIsOpen(false);
   };
 
-  const handleUseCustomLocation = () => {
+  const handleUseCustomLocation = async () => {
     if (query.trim()) {
-      const customLocation = generateLocationFromQuery(query.trim());
+      setIsSearching(true);
+      const customLocation = await generateLocationFromQuery(query.trim());
       onLocationSelect(customLocation);
       setQuery("");
       setIsOpen(false);
+      setIsSearching(false);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && query.trim()) {
+    if (e.key === "Enter" && query.trim() && !isSearching) {
       e.preventDefault();
       handleUseCustomLocation();
     }
@@ -211,7 +251,7 @@ export function LocationSearch({
                 </p>
               </div>
             )}
-            
+
             {filteredLocations.map((location) => (
               <button
                 key={location.id}

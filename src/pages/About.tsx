@@ -1,83 +1,72 @@
 import { useState, useEffect, useCallback } from "react";
-import { MapPin, TrendingUp, Activity, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { MapPin, TrendingUp, Activity, ChevronLeft, ChevronRight, Calendar, AlertTriangle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// Base Indian states data with accident statistics
-const baseStatesData = [
-  { state: "Maharashtra", baseAccidents: 85, color: "from-rose-500 to-pink-600" },
-  { state: "Tamil Nadu", baseAccidents: 78, color: "from-amber-400 to-yellow-500" },
-  { state: "Uttar Pradesh", baseAccidents: 72, color: "from-rose-500 to-pink-600" },
-  { state: "Karnataka", baseAccidents: 68, color: "from-amber-400 to-yellow-500" },
-  { state: "Andhra Pradesh", baseAccidents: 65, color: "from-rose-500 to-pink-600" },
-  { state: "Gujarat", baseAccidents: 58, color: "from-amber-400 to-yellow-500" },
-  { state: "Rajasthan", baseAccidents: 52, color: "from-rose-500 to-pink-600" },
-  { state: "Madhya Pradesh", baseAccidents: 48, color: "from-amber-400 to-yellow-500" },
-  { state: "Kerala", baseAccidents: 45, color: "from-rose-500 to-pink-600" },
-  { state: "West Bengal", baseAccidents: 42, color: "from-amber-400 to-yellow-500" },
-  { state: "Telangana", baseAccidents: 55, color: "from-rose-500 to-pink-600" },
-  { state: "Punjab", baseAccidents: 38, color: "from-amber-400 to-yellow-500" },
-  { state: "Haryana", baseAccidents: 35, color: "from-rose-500 to-pink-600" },
-  { state: "Bihar", baseAccidents: 32, color: "from-amber-400 to-yellow-500" },
-  { state: "Odisha", baseAccidents: 28, color: "from-rose-500 to-pink-600" },
-  { state: "Delhi", baseAccidents: 62, color: "from-amber-400 to-yellow-500" },
-];
+// Interfaces for new fetched data
+interface StateAlert {
+  state: string;
+  daily_total: number;
+  risk_level: string;
+  risk_score: number;
+  peak_predicted: number;
+  peak_hour: string;
+}
 
-// Slide data for carousel
-
-// Slide data for carousel
-const slides = [
-  {
-    title: "Traffic Safety Analytics",
-    subtitle: "Powered by AI & Machine Learning",
-    description: "Real-time accident prediction and risk assessment across India",
-    gradient: "from-violet-900 via-purple-800 to-fuchsia-900",
-  },
-  {
-    title: "Smart City Initiative",
-    subtitle: "Data-Driven Decision Making",
-    description: "Empowering traffic authorities with predictive insights",
-    gradient: "from-blue-900 via-indigo-800 to-purple-900",
-  },
-  {
-    title: "Time-Series Forecasting",
-    subtitle: "ARIMA & Prophet Models",
-    description: "Advanced algorithms analyzing historical patterns",
-    gradient: "from-emerald-900 via-teal-800 to-cyan-900",
-  },
-];
+interface HourlyAlert {
+  hour: number;
+  label: string;
+  predicted_count: number;
+  risk_level: string;
+  factors: string[];
+}
 
 export default function About() {
-  const [animatedBars, setAnimatedBars] = useState<number[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [statesData, setStatesData] = useState(
-    baseStatesData.map((s) => ({ ...s, accidents: s.baseAccidents }))
-  );
 
-  // Generate random variation for day-wise updates
-  const generateDayWiseData = useCallback(() => {
-    return baseStatesData.map((state) => {
-      // Random variation between -15% to +15%
-      const variation = (Math.random() - 0.5) * 0.3;
-      const newAccidents = Math.round(state.baseAccidents * (1 + variation));
-      return {
-        ...state,
-        accidents: Math.min(100, Math.max(10, newAccidents)),
-      };
-    });
-  }, []);
+  const [statesData, setStatesData] = useState<StateAlert[]>([]);
+  const [alertSlides, setAlertSlides] = useState<HourlyAlert[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Animate bars on mount with staggered effect
+  // Fetch Real ML Data
   useEffect(() => {
-    const timers: NodeJS.Timeout[] = [];
-    baseStatesData.forEach((_, index) => {
-      const timer = setTimeout(() => {
-        setAnimatedBars((prev) => [...prev, index]);
-      }, 100 + index * 80);
-      timers.push(timer);
-    });
-    return () => timers.forEach((t) => clearTimeout(t));
+    let isMounted = true;
+
+    const fetchStates = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/state-alerts");
+        if (res.ok && isMounted) {
+          const stateData = await res.json();
+          setStatesData(stateData.all_states || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch ML data for About page states", err);
+      }
+    };
+
+    const fetchAlerts = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/alerts");
+        if (res.ok && isMounted) {
+          const alertData = await res.json();
+          if (alertData.alerts && alertData.alerts.length > 0) {
+            setAlertSlides(alertData.alerts.slice(0, 4));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch ML data for About page alerts", err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    fetchStates();
+    fetchAlerts();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Live time update every second
@@ -88,39 +77,48 @@ export default function About() {
     return () => clearInterval(interval);
   }, []);
 
-  // Update data every minute based on real time
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setStatesData(generateDayWiseData());
-    }, 60000); // Update every minute
-    return () => clearInterval(interval);
-  }, [generateDayWiseData]);
-
   // Auto-slide carousel
   useEffect(() => {
+    if (alertSlides.length === 0) return;
     const interval = setInterval(() => {
       nextSlide();
     }, 6000);
     return () => clearInterval(interval);
-  }, [currentSlide]);
+  }, [currentSlide, alertSlides.length]);
 
   const nextSlide = () => {
+    if (alertSlides.length === 0) return;
     setIsTransitioning(true);
     setTimeout(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
+      setCurrentSlide((prev) => (prev + 1) % alertSlides.length);
       setIsTransitioning(false);
     }, 300);
   };
 
   const prevSlide = () => {
+    if (alertSlides.length === 0) return;
     setIsTransitioning(true);
     setTimeout(() => {
-      setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+      setCurrentSlide((prev) => (prev - 1 + alertSlides.length) % alertSlides.length);
       setIsTransitioning(false);
     }, 300);
   };
 
-  const maxAccidents = Math.max(...statesData.map((d) => d.accidents));
+  const maxAccidents = statesData.length > 0
+    ? Math.max(...statesData.map((d) => d.daily_total))
+    : 100;
+
+  const getSlideGradient = (riskLevel: string) => {
+    if (riskLevel === 'high') return "from-rose-900 via-red-900 to-red-950";
+    if (riskLevel === 'medium') return "from-orange-900 via-amber-800 to-yellow-900";
+    return "from-emerald-900 via-teal-800 to-cyan-900";
+  };
+
+  const getStateGradient = (riskLevel: string) => {
+    if (riskLevel === 'high') return "from-rose-500 to-pink-600";
+    if (riskLevel === 'medium') return "from-amber-400 to-yellow-500";
+    return "from-emerald-400 to-teal-500";
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 overflow-hidden">
@@ -128,7 +126,8 @@ export default function About() {
       <div className="relative h-[40vh] min-h-[320px]">
         {/* Animated Background */}
         <div
-          className={`absolute inset-0 bg-gradient-to-br ${slides[currentSlide].gradient} transition-all duration-700`}
+          className={`absolute inset-0 bg-gradient-to-br ${alertSlides.length > 0 ? getSlideGradient(alertSlides[currentSlide].risk_level) : "from-slate-900 to-slate-800"
+            } transition-all duration-700`}
         >
           {/* Floating particles */}
           <div className="absolute inset-0 overflow-hidden">
@@ -158,33 +157,38 @@ export default function About() {
         </div>
 
         {/* Slide Content */}
-        <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-4">
-          <div
-            className={`transform transition-all duration-500 ${
-              isTransitioning ? "opacity-0 scale-95" : "opacity-100 scale-100"
-            }`}
-          >
-            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-4">
-              <Activity className="h-4 w-4 text-white" />
-              <span className="text-white/90 text-sm font-medium">
-                {slides[currentSlide].subtitle}
-              </span>
+        {!isLoading && alertSlides.length > 0 && (
+          <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-4">
+            <div
+              className={`transform transition-all duration-500 ${isTransitioning ? "opacity-0 scale-95" : "opacity-100 scale-100"
+                }`}
+            >
+              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-4">
+                <AlertTriangle className="h-4 w-4 text-white" />
+                <span className="text-white/90 text-sm font-bold uppercase tracking-wider">
+                  {alertSlides[currentSlide].risk_level} RISK ALERT - {alertSlides[currentSlide].label}
+                </span>
+              </div>
+              <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 font-display">
+                ~{alertSlides[currentSlide].predicted_count.toFixed(1)} Predicted Accidents
+              </h1>
+              <p className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto flex flex-wrap gap-2 justify-center">
+                {alertSlides[currentSlide].factors.map((f, idx) => (
+                  <span key={idx} className="bg-black/30 px-3 py-1 rounded-full text-sm flex items-center gap-1">
+                    <Info className="h-3 w-3" /> {f}
+                  </span>
+                ))}
+              </p>
             </div>
-            <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 font-display">
-              {slides[currentSlide].title}
-            </h1>
-            <p className="text-lg md:text-xl text-white/80 max-w-2xl">
-              {slides[currentSlide].description}
-            </p>
           </div>
-        </div>
+        )}
 
         {/* Navigation Arrows */}
         <Button
           variant="ghost"
           size="icon"
           onClick={prevSlide}
-          className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white rounded-full"
+          className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white rounded-full z-20"
         >
           <ChevronLeft className="h-6 w-6" />
         </Button>
@@ -192,22 +196,21 @@ export default function About() {
           variant="ghost"
           size="icon"
           onClick={nextSlide}
-          className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white rounded-full"
+          className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white rounded-full z-20"
         >
           <ChevronRight className="h-6 w-6" />
         </Button>
 
         {/* Slide Indicators */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
-          {slides.map((_, i) => (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+          {alertSlides.map((_, i) => (
             <button
               key={i}
               onClick={() => setCurrentSlide(i)}
-              className={`h-2 rounded-full transition-all duration-300 ${
-                i === currentSlide
-                  ? "w-8 bg-white"
-                  : "w-2 bg-white/50 hover:bg-white/70"
-              }`}
+              className={`h-2 rounded-full transition-all duration-300 ${i === currentSlide
+                ? "w-8 bg-white"
+                : "w-2 bg-white/50 hover:bg-white/70"
+                }`}
             />
           ))}
         </div>
@@ -275,23 +278,22 @@ export default function About() {
           </div>
 
           {/* Chart Container */}
-          <div className="relative ml-8 mt-16">
+          <div className={`relative ml-8 mt-16 transition-opacity duration-500 ${statesData.length === 0 ? "opacity-50" : "opacity-100"}`}>
             <div className="flex items-end justify-center gap-1 md:gap-2 h-[300px] md:h-[400px]">
-              {statesData.map((state, index) => {
-                const barHeight = (state.accidents / maxAccidents) * 300;
-                const isAnimated = animatedBars.includes(index);
+              {statesData.length > 0 && statesData.map((state, index) => {
+                const effectiveMax = maxAccidents > 10 ? maxAccidents : 100;
+                const barHeight = (state.daily_total / effectiveMax) * 300;
+                const color = getStateGradient(state.risk_level);
 
                 return (
                   <div
-                    key={state.state}
+                    key={`${state.state}-${index}`}
                     className="relative flex-1 max-w-12 group h-full flex items-end"
                   >
                     {/* Bar */}
                     <div
-                      className={`relative w-full rounded-t-lg bg-gradient-to-t ${state.color} shadow-lg transition-all duration-500 ease-out cursor-pointer hover:opacity-90`}
-                      style={{
-                        height: isAnimated ? `${barHeight}px` : "0px",
-                      }}
+                      className={`relative w-full rounded-t-lg bg-gradient-to-t ${color} shadow-lg transition-all duration-500 ease-out cursor-pointer hover:opacity-90`}
+                      style={{ height: `${barHeight}px` }}
                     >
                       {/* Glow effect */}
                       <div className="absolute inset-0 rounded-t-lg bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -299,7 +301,7 @@ export default function About() {
                       {/* Value tooltip with full state name */}
                       <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-white text-slate-900 px-3 py-2 rounded-lg text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-xl z-20">
                         <div className="text-sm font-bold text-slate-800">{state.state}</div>
-                        <div className="text-lg font-extrabold text-primary">{state.accidents}%</div>
+                        <div className="text-lg font-extrabold text-primary">{Math.round(state.daily_total)} Predictions</div>
                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-white" />
                       </div>
 

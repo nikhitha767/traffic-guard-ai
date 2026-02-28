@@ -132,7 +132,7 @@ export function Header() {
                 {item.label}
               </Link>
             ))}
-            
+
             {/* Mobile Auth */}
             <div className="border-t border-border mt-2 pt-4">
               {loading ? (

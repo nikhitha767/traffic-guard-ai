@@ -10,14 +10,13 @@ import {
   MapPin,
   Calendar,
 } from "lucide-react";
-import {
-  hourlyAccidentData,
-  monthlyAccidentData,
-  peakHourTrendData,
-  highRiskTimeSlots,
-} from "@/lib/dummy-data";
 import { usePrediction } from "@/context/PredictionContext";
+import { useAuth } from "@/context/AuthContext";
+import { useMemo } from "react";
 import {
+  PieChart,
+  Pie,
+  Cell,
   BarChart,
   Bar,
   LineChart,
@@ -32,6 +31,7 @@ import {
   Legend,
 } from "recharts";
 import { cn } from "@/lib/utils";
+import { useEffect } from "react";
 
 const chartTooltipStyle = {
   backgroundColor: "hsl(var(--card))",
@@ -39,26 +39,116 @@ const chartTooltipStyle = {
   borderRadius: "8px",
 };
 
-export default function Dashboard() {
-  const { latestPrediction, predictionHistory } = usePrediction();
+const RISK_COLORS = {
+  low: "hsl(var(--success))",
+  medium: "hsl(var(--warning))",
+  high: "hsl(var(--danger))",
+};
 
-  // Calculate stats based on latest prediction or defaults
-  const totalAccidents = latestPrediction 
-    ? latestPrediction.predictedCount 
-    : 1823;
-  
-  const highRiskHours = latestPrediction?.riskLevel === "high" 
-    ? 4 
-    : latestPrediction?.riskLevel === "medium" 
-      ? 2 
-      : 1;
-  
-  const peakTime = latestPrediction?.time || "5:30 PM";
-  const accuracy = latestPrediction?.confidence || 91.2;
+export default function Dashboard() {
+  const { latestPrediction, predictionHistory, fetchHistory } = usePrediction();
+  const { session, signOut } = useAuth();
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (session?.access_token) {
+        const status = await fetchHistory(session.access_token);
+        if (status === 401) {
+          signOut();
+        }
+      }
+    };
+    loadHistory();
+  }, [session]);
+
+  // Effective history: always includes latestPrediction so charts work right after first prediction
+  const effectiveHistory = useMemo(() => {
+    if (!latestPrediction) return predictionHistory;
+    // prepend latestPrediction if not already first item
+    const first = predictionHistory[0];
+    if (first && first.date === latestPrediction.date && first.time === latestPrediction.time) {
+      return predictionHistory;
+    }
+    return [latestPrediction, ...predictionHistory];
+  }, [latestPrediction, predictionHistory]);
+
+  // 1. Predictions per day (Line Chart)
+  const predictionsByDay = useMemo(() => {
+    const days: Record<string, number> = {};
+    effectiveHistory.forEach(p => {
+      if (!p.date) return;
+      days[p.date] = (days[p.date] || 0) + 1;
+    });
+    return Object.entries(days).map(([date, count]) => ({ date, count })).slice(-7);
+  }, [effectiveHistory]);
+
+  // 2. Risk distribution (Pie chart)
+  const riskDistribution = useMemo(() => {
+    const counts = { low: 0, medium: 0, high: 0 };
+    effectiveHistory.forEach(p => {
+      if (p.riskLevel && p.riskLevel in counts) counts[p.riskLevel as keyof typeof counts]++;
+    });
+    return Object.entries(counts)
+      .filter(([, v]) => v > 0)
+      .map(([name, value]) => ({ name, value }));
+  }, [effectiveHistory]);
+
+  // 3. Most dangerous locations (Bar chart)
+  const dangerousLocations = useMemo(() => {
+    const locs: Record<string, number> = {};
+    effectiveHistory
+      .filter(p => p.riskLevel === "high" || p.riskLevel === "medium")
+      .forEach(p => {
+        const name = p.location?.name || "Unknown";
+        locs[name] = (locs[name] || 0) + 1;
+      });
+    return Object.entries(locs).map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count).slice(0, 5);
+  }, [effectiveHistory]);
+
+  // 4. Peak accident hours (Area chart)
+  const peakHoursData = useMemo(() => {
+    const hours: Record<string, number> = {};
+    effectiveHistory.forEach(p => {
+      if (!p.time) return;
+      const hour = p.time.split(":")[0];
+      hours[hour] = (hours[hour] || 0) + (p.predictedCount || 1);
+    });
+    return Object.entries(hours)
+      .map(([hour, count]) => ({ hour: `${hour}:00`, count }))
+      .sort((a, b) => parseInt(a.hour) - parseInt(b.hour));
+  }, [effectiveHistory]);
+
+  const totalPredictions = effectiveHistory.length;
+  const highRiskCount = effectiveHistory.filter(p => p.riskLevel === "high").length;
+  const avgConfidence = effectiveHistory.length > 0
+    ? Math.round(effectiveHistory.reduce((acc, p) => acc + (p.confidence || 0), 0) / effectiveHistory.length)
+    : 0;
 
   return (
     <div className="py-8 md:py-12">
       <div className="container">
+        {/* User Profile Section */}
+        {session?.user && (
+          <div className="mb-6 p-4 rounded-lg bg-muted/30 border border-border/50 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <span className="text-lg font-semibold text-primary">
+                {session.user.email?.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground">
+                {session.user.email?.split('@')[0]}'s Analytics
+              </p>
+              <p className="text-xs text-muted-foreground">{session.user.email}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">Total Searches</p>
+              <p className="text-lg font-bold text-primary">{totalPredictions}</p>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
@@ -68,7 +158,7 @@ export default function Dashboard() {
             <div>
               <h1 className="text-3xl font-bold font-display">Analytics Dashboard</h1>
               <p className="text-muted-foreground">
-                {latestPrediction 
+                {latestPrediction
                   ? `Showing prediction for ${latestPrediction.location?.name || "selected location"}`
                   : "Real-time traffic accident insights and predictions"}
               </p>
@@ -127,48 +217,46 @@ export default function Dashboard() {
         {/* Stats Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard
-            title={latestPrediction ? "Predicted Accidents" : "Total Accidents (YTD)"}
-            value={totalAccidents.toLocaleString()}
-            subtitle={latestPrediction ? `For ${latestPrediction.location?.name || "location"}` : "This year"}
-            icon={AlertTriangle}
-            trend={latestPrediction ? undefined : { value: 12, positive: false }}
-            variant={latestPrediction?.riskLevel === "high" ? "danger" : latestPrediction?.riskLevel === "medium" ? "warning" : "danger"}
-          />
-          <StatCard
-            title="High Risk Hours"
-            value={highRiskHours.toString()}
-            subtitle={latestPrediction ? "Based on prediction" : "Identified daily"}
-            icon={Clock}
-            variant="warning"
-          />
-          <StatCard
-            title="Peak Accident Time"
-            value={peakTime}
-            subtitle={latestPrediction ? "Selected time" : "Evening rush"}
-            icon={TrendingUp}
+            title="Total Predictions"
+            value={totalPredictions.toString()}
+            subtitle="Your search history"
+            icon={Target}
             variant="default"
           />
           <StatCard
-            title="Prediction Accuracy"
-            value={`${accuracy}%`}
-            subtitle="Model performance"
-            icon={Target}
-            trend={latestPrediction ? undefined : { value: 3.2, positive: true }}
+            title="High Risks Found"
+            value={highRiskCount.toString()}
+            subtitle="Dangerous conditions"
+            icon={AlertTriangle}
+            variant="danger"
+          />
+          <StatCard
+            title="Last Search Location"
+            value={latestPrediction?.location?.name || "N/A"}
+            subtitle={latestPrediction?.time || "No recent search"}
+            icon={MapPin}
+            variant="default"
+          />
+          <StatCard
+            title="Average Confidence"
+            value={`${avgConfidence}%`}
+            subtitle="Model stability"
+            icon={TrendingUp}
             variant="success"
           />
         </div>
 
         {/* Prediction History */}
-        {predictionHistory.length > 1 && (
+        {effectiveHistory.length > 1 && (
           <Card className="shadow-card mb-8">
             <CardHeader>
               <CardTitle className="text-lg">Recent Predictions</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {predictionHistory.slice(0, 5).map((pred, index) => (
-                  <div 
-                    key={index} 
+                {effectiveHistory.slice(0, 5).map((pred, index) => (
+                  <div
+                    key={index}
                     className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border"
                   >
                     <div className="flex items-center gap-3">
@@ -193,141 +281,134 @@ export default function Dashboard() {
           </Card>
         )}
 
-        {/* Charts Grid */}
-        <div className="grid lg:grid-cols-2 gap-6 mb-8">
-          {/* Accidents per Hour */}
-          <Card className="shadow-card">
-            <CardHeader>
-              <CardTitle className="text-lg">Accidents per Hour</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={hourlyAccidentData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis
-                      dataKey="hour"
-                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                      interval={1}
-                    />
-                    <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                    <Tooltip contentStyle={chartTooltipStyle} />
-                    <Bar
-                      dataKey="accidents"
-                      fill="hsl(var(--chart-primary))"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Peak Hour Trend */}
-          <Card className="shadow-card">
-            <CardHeader>
-              <CardTitle className="text-lg">Peak Hour Trend by Day</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={peakHourTrendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis
-                      dataKey="day"
-                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                    />
-                    <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                    <Tooltip contentStyle={chartTooltipStyle} />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="morning"
-                      name="Morning Peak"
-                      stroke="hsl(var(--chart-warning))"
-                      strokeWidth={2}
-                      dot={{ fill: "hsl(var(--chart-warning))" }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="evening"
-                      name="Evening Peak"
-                      stroke="hsl(var(--chart-danger))"
-                      strokeWidth={2}
-                      dot={{ fill: "hsl(var(--chart-danger))" }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Monthly Area Chart */}
-        <Card className="shadow-card mb-8">
-          <CardHeader>
-            <CardTitle className="text-lg">Monthly Accident Trend (Actual vs Predicted)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={monthlyAccidentData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                  />
-                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                  <Tooltip contentStyle={chartTooltipStyle} />
-                  <Legend />
-                  <Area
-                    type="monotone"
-                    dataKey="accidents"
-                    name="Actual"
-                    stroke="hsl(var(--chart-secondary))"
-                    fill="hsl(var(--chart-secondary) / 0.2)"
-                    strokeWidth={2}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="predicted"
-                    name="Predicted"
-                    stroke="hsl(var(--chart-primary))"
-                    fill="hsl(var(--chart-primary) / 0.2)"
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* High Risk Time Slots */}
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="text-lg">High Risk Time Slots</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {highRiskTimeSlots.map((slot, index) => (
-                <div
-                  key={slot.time}
-                  className="bg-muted/50 rounded-lg p-4 border border-border animate-fade-in"
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <Clock className="h-5 w-5 text-muted-foreground" />
-                    <RiskBadge level={slot.risk} />
+        {/* Charts Grid - Predictions & Risks */}
+        {effectiveHistory.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center rounded-xl border border-dashed border-border bg-muted/20 mb-8">
+            <BarChart3 className="h-12 w-12 text-muted-foreground/50 mb-4" />
+            <p className="text-lg font-semibold text-muted-foreground">No prediction data yet</p>
+            <p className="text-sm text-muted-foreground mt-1">Go to the <span className="text-primary font-medium">AI Prediction</span> page, run a prediction, and your charts will appear here.</p>
+          </div>
+        ) : (
+          <>
+            <div className="grid lg:grid-cols-2 gap-6 mb-8">
+              {/* Predictions per Day */}
+              <Card className="shadow-card">
+                <CardHeader>
+                  <CardTitle className="text-lg">Predictions Activity (Last 7 Days)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    {predictionsByDay.length === 0 ? (
+                      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">No data</div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={predictionsByDay}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="date" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
+                          <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
+                          <Tooltip contentStyle={chartTooltipStyle} />
+                          <Line type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ r: 4 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    )}
                   </div>
-                  <p className="font-semibold text-foreground mb-1">{slot.time}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Avg. {slot.avgAccidents} accidents/day
-                  </p>
-                </div>
-              ))}
+                </CardContent>
+              </Card>
+
+              {/* Risk Distribution */}
+              <Card className="shadow-card">
+                <CardHeader>
+                  <CardTitle className="text-lg">Risk Level Distribution</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    {riskDistribution.length === 0 ? (
+                      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">No data</div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={riskDistribution}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                          >
+                            {riskDistribution.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={RISK_COLORS[entry.name as keyof typeof RISK_COLORS]} />
+                            ))}
+                          </Pie>
+                          <Tooltip contentStyle={chartTooltipStyle} />
+                          <Legend verticalAlign="bottom" height={36} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
+
+            {/* Charts Grid - Locations & Hours */}
+            <div className="grid lg:grid-cols-2 gap-6 mb-8">
+              {/* Dangerous Locations */}
+              <Card className="shadow-card">
+                <CardHeader>
+                  <CardTitle className="text-lg">Most Dangerous Locations (High & Medium Risk)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    {dangerousLocations.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full text-center gap-2">
+                        <MapPin className="h-8 w-8 text-muted-foreground/40" />
+                        <p className="text-muted-foreground text-sm">No high/medium risk locations yet</p>
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={dangerousLocations} layout="vertical">
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis type="number" hide />
+                          <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 11 }} />
+                          <Tooltip contentStyle={chartTooltipStyle} />
+                          <Bar dataKey="count" fill="hsl(var(--danger))" radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Peak Accident Hours */}
+              <Card className="shadow-card">
+                <CardHeader>
+                  <CardTitle className="text-lg">Peak Accident Probability by Hour</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    {peakHoursData.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full text-center gap-2">
+                        <Clock className="h-8 w-8 text-muted-foreground/40" />
+                        <p className="text-muted-foreground text-sm">No hourly data yet</p>
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={peakHoursData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="hour" tick={{ fontSize: 11 }} />
+                          <YAxis tick={{ fontSize: 12 }} />
+                          <Tooltip contentStyle={chartTooltipStyle} />
+                          <Area type="monotone" dataKey="count" stroke="hsl(var(--warning))" fill="hsl(var(--warning)/0.2)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </>
+        )}
+
       </div>
     </div>
   );

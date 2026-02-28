@@ -1,104 +1,23 @@
-import { useState, useMemo } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { useEffect } from "react";
+import { Database, MapPin, AlertTriangle, Clock, Calendar, BrainCircuit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Search, ChevronLeft, ChevronRight, Database, MapPin, AlertTriangle, Clock } from "lucide-react";
-import { accidentDataset, AccidentRecord, locations } from "@/lib/dummy-data";
-import { cn } from "@/lib/utils";
 import { usePrediction } from "@/context/PredictionContext";
-
-const ITEMS_PER_PAGE = 8;
-
-// Get unique cities and locations from dataset
-const datasetCities = [...new Set(accidentDataset.map((r) => r.city))];
-const datasetLocations = [...new Set(accidentDataset.map((r) => r.location))];
+import { useAuth } from "@/context/AuthContext";
+import { format } from "date-fns";
+import { RiskBadge } from "@/components/ui/risk-badge";
+import { cn } from "@/lib/utils";
 
 export default function Dataset() {
-  const { latestPrediction } = usePrediction();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [peakFilter, setPeakFilter] = useState<string>("all");
-  const [cityFilter, setCityFilter] = useState<string>("all");
-  const [currentPage, setCurrentPage] = useState(1);
+  const { latestPrediction, predictionHistory, fetchHistory } = usePrediction();
+  const { session } = useAuth();
 
-  // Get time period from prediction time
-  const getTimePeriod = (time: string): "Morning" | "Evening" | "Off-Peak" => {
-    const hour = parseInt(time.split(":")[0]);
-    if (hour >= 7 && hour < 10) return "Morning";
-    if (hour >= 17 && hour < 20) return "Evening";
-    return "Off-Peak";
-  };
-
-  // Get severity from risk level
-  const getSeverityFromRisk = (risk: "low" | "medium" | "high"): "Minor" | "Moderate" | "Severe" => {
-    switch (risk) {
-      case "low": return "Minor";
-      case "medium": return "Moderate";
-      case "high": return "Severe";
+  useEffect(() => {
+    if (session?.access_token) {
+      fetchHistory(session.access_token);
     }
-  };
+  }, [session, fetchHistory]);
 
-  const filteredData = useMemo(() => {
-    return accidentDataset.filter((record) => {
-      const query = searchQuery.toLowerCase();
-      const matchesSearch =
-        record.location.toLowerCase().includes(query) ||
-        record.city.toLowerCase().includes(query) ||
-        record.area.toLowerCase().includes(query) ||
-        record.date.includes(searchQuery);
-      const matchesPeak = peakFilter === "all" || record.peakHour === peakFilter;
-      const matchesCity = cityFilter === "all" || record.city === cityFilter;
-      return matchesSearch && matchesPeak && matchesCity;
-    });
-  }, [searchQuery, peakFilter, cityFilter]);
-
-  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
-  const paginatedData = filteredData.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
-
-  // Get location risk info
-  const getLocationRisk = (locationName: string) => {
-    const loc = locations.find((l) => l.name === locationName);
-    return loc?.baseRisk || "medium";
-  };
-
-  const getSeverityVariant = (severity: AccidentRecord["severity"]) => {
-    switch (severity) {
-      case "Minor":
-        return "default";
-      case "Moderate":
-        return "secondary";
-      case "Severe":
-        return "destructive";
-    }
-  };
-
-  const getPeakHourVariant = (peakHour: AccidentRecord["peakHour"]) => {
-    switch (peakHour) {
-      case "Morning":
-        return "outline";
-      case "Evening":
-        return "secondary";
-      case "Off-Peak":
-        return "default";
-    }
-  };
+  const displayHistory = predictionHistory || [];
 
   return (
     <div className="py-8 md:py-12">
@@ -110,9 +29,9 @@ export default function Dataset() {
               <Database className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold font-display">Accident Dataset</h1>
+              <h1 className="text-3xl font-bold font-display">Accident Dataset & History</h1>
               <p className="text-muted-foreground">
-                Historical traffic accident records for analysis
+                Your recent accident risk predictions.
               </p>
             </div>
           </div>
@@ -120,201 +39,134 @@ export default function Dataset() {
 
         {/* Latest Prediction Card */}
         {latestPrediction && (
-          <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-xl border border-primary/20 p-5 mb-6 shadow-card">
-            <div className="flex items-center gap-2 mb-3">
-              <AlertTriangle className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">Latest Prediction Added</h2>
-              <Badge variant="outline" className="ml-auto">New</Badge>
+          <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-xl border border-primary/20 p-5 mb-8 shadow-card animate-fade-in relative overflow-hidden">
+            <div className="absolute -right-10 -top-10 opacity-10">
+              <BrainCircuit className="w-40 h-40 text-primary" />
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Location</p>
-                <p className="font-medium text-sm truncate">{latestPrediction.location?.name || "Custom Location"}</p>
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 mb-4">
+                <AlertTriangle className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold">Latest Prediction Result</h2>
+                <Badge variant="outline" className="ml-auto bg-background/50 backdrop-blur-sm border-primary/30 text-primary uppercase text-[10px] tracking-wider font-bold">New</Badge>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Date & Time</p>
-                <p className="font-medium text-sm">{latestPrediction.date} at {latestPrediction.time}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Predicted Accidents</p>
-                <p className="font-bold text-lg text-primary">{latestPrediction.predictedCount}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Risk Level</p>
-                <span className={cn(
-                  "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium",
-                  {
-                    "bg-danger/10 text-danger": latestPrediction.riskLevel === "high",
-                    "bg-warning/10 text-warning": latestPrediction.riskLevel === "medium",
-                    "bg-success/10 text-success": latestPrediction.riskLevel === "low",
-                  }
-                )}>
-                  <span className={cn("h-1.5 w-1.5 rounded-full", {
-                    "bg-danger": latestPrediction.riskLevel === "high",
-                    "bg-warning": latestPrediction.riskLevel === "medium",
-                    "bg-success": latestPrediction.riskLevel === "low",
-                  })} />
-                  {latestPrediction.riskLevel.charAt(0).toUpperCase() + latestPrediction.riskLevel.slice(1)}
-                </span>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Peak Hour</p>
-                <Badge variant="secondary">
-                  <Clock className="h-3 w-3 mr-1" />
-                  {getTimePeriod(latestPrediction.time)}
-                </Badge>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="bg-background/40 p-3 rounded-lg border border-border/50">
+                  <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">Location</p>
+                  <p className="font-medium text-sm truncate">{latestPrediction.location?.name || "Custom Location"}</p>
+                </div>
+                <div className="bg-background/40 p-3 rounded-lg border border-border/50">
+                  <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">Date & Time</p>
+                  <p className="font-medium text-sm">{latestPrediction.date} at {latestPrediction.time}</p>
+                </div>
+                <div className="bg-background/40 p-3 rounded-lg border border-border/50">
+                  <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">Predicted Accidents</p>
+                  <p className="font-bold text-lg text-primary">{latestPrediction.predictedCount}</p>
+                </div>
+                <div className="bg-background/40 p-3 rounded-lg border border-border/50">
+                  <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">Risk Level</p>
+                  <span className={cn(
+                    "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider",
+                    {
+                      "bg-danger/10 text-danger": latestPrediction.riskLevel === "high",
+                      "bg-warning/10 text-warning": latestPrediction.riskLevel === "medium",
+                      "bg-success/10 text-success": latestPrediction.riskLevel === "low",
+                    }
+                  )}>
+                    <span className={cn("h-1.5 w-1.5 rounded-full animate-pulse", {
+                      "bg-danger": latestPrediction.riskLevel === "high",
+                      "bg-warning": latestPrediction.riskLevel === "medium",
+                      "bg-success": latestPrediction.riskLevel === "low",
+                    })} />
+                    {latestPrediction.riskLevel}
+                  </span>
+                </div>
+                <div className="bg-background/40 p-3 rounded-lg border border-border/50">
+                  <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-semibold">Peak Hour</p>
+                  <Badge variant="secondary" className="flex w-fit items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {latestPrediction.time.split(':')[0]} hr slot
+                  </Badge>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Filters */}
-        <div className="bg-card rounded-xl border border-border p-4 mb-6 shadow-card">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by city, area, or location..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="pl-10"
-              />
+        {/* Prediction Cards Grid */}
+        <div className="mt-4">
+          <h3 className="text-xl font-bold font-display mb-4">Overall Prediction History</h3>
+
+          {displayHistory.length === 0 ? (
+            <div className="text-center py-20 bg-card rounded-xl border border-border/50">
+              <Database className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-muted-foreground">No records found matching your criteria.</p>
             </div>
-            <Select
-              value={cityFilter}
-              onValueChange={(value) => {
-                setCityFilter(value);
-                setCurrentPage(1);
-              }}
-            >
-              <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="Filter by City" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Cities</SelectItem>
-                {datasetCities.map((city) => (
-                  <SelectItem key={city} value={city}>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-3 w-3 text-muted-foreground" />
-                      {city}
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {displayHistory.map((record, idx) => (
+                <div
+                  key={idx}
+                  className="bg-card hover:bg-muted/10 transition-colors rounded-xl border border-border shadow-card overflow-hidden flex flex-col group cursor-default"
+                >
+                  {/* Card Header */}
+                  <div className="p-4 border-b border-border/50 flex justify-between items-start bg-muted/20">
+                    <div className="flex items-center gap-2 max-w-[75%]">
+                      <div className={cn(
+                        "p-2 rounded-lg shrink-0 transition-transform group-hover:scale-110",
+                        {
+                          "bg-danger/10": record.riskLevel === "high",
+                          "bg-warning/10": record.riskLevel === "medium",
+                          "bg-success/10": record.riskLevel === "low",
+                        }
+                      )}>
+                        <MapPin className={cn(
+                          "h-5 w-5",
+                          {
+                            "text-danger": record.riskLevel === "high",
+                            "text-warning": record.riskLevel === "medium",
+                            "text-success": record.riskLevel === "low",
+                          }
+                        )} />
+                      </div>
+                      <h4 className="font-semibold text-sm truncate" title={record.location?.name}>
+                        {record.location?.name || "Custom Location"}
+                      </h4>
                     </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={peakFilter}
-              onValueChange={(value) => {
-                setPeakFilter(value);
-                setCurrentPage(1);
-              }}
-            >
-              <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="Filter by Peak Hour" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Hours</SelectItem>
-                <SelectItem value="Morning">Morning Peak</SelectItem>
-                <SelectItem value="Evening">Evening Peak</SelectItem>
-                <SelectItem value="Off-Peak">Off-Peak</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+                    <RiskBadge level={record.riskLevel || 'low'} />
+                  </div>
 
-        {/* Table */}
-        <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold">Date</TableHead>
-                <TableHead className="font-semibold">Time</TableHead>
-                <TableHead className="font-semibold">City</TableHead>
-                <TableHead className="font-semibold">Area / Location</TableHead>
-                <TableHead className="font-semibold text-center">Accidents</TableHead>
-                <TableHead className="font-semibold">Peak Hour</TableHead>
-                <TableHead className="font-semibold">Severity</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedData.length > 0 ? (
-                paginatedData.map((record) => {
-                  return (
-                    <TableRow key={record.id} className="hover:bg-muted/30 transition-colors">
-                      <TableCell className="font-medium">{record.date}</TableCell>
-                      <TableCell>{record.time}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="font-medium">
-                          {record.city}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="max-w-[250px]">
-                        <div className="flex flex-col">
-                          <span className="font-medium text-sm">{record.area}</span>
-                          <span className="text-xs text-muted-foreground truncate">{record.location}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm">
-                          {record.accidentCount}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getPeakHourVariant(record.peakHour)}>
-                          {record.peakHour}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getSeverityVariant(record.severity)}>
-                          {record.severity}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    No records found matching your criteria.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                  {/* Card Body */}
+                  <div className="p-4 flex-1 flex flex-col justify-between">
+                    <div className="grid grid-cols-2 gap-y-4 mb-4">
+                      <div>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+                          <Calendar className="h-3 w-3" /> Date
+                        </p>
+                        <p className="text-sm font-medium">{record.date}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+                          <Clock className="h-3 w-3" /> Time (Hour)
+                        </p>
+                        <p className="text-sm font-medium">{record.time}</p>
+                      </div>
+                    </div>
 
-          {/* Pagination */}
-          <div className="flex items-center justify-between px-4 py-4 border-t border-border">
-            <p className="text-sm text-muted-foreground">
-              Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{" "}
-              {Math.min(currentPage * ITEMS_PER_PAGE, filteredData.length)} of{" "}
-              {filteredData.length} records
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm font-medium px-2">
-                Page {currentPage} of {totalPages || 1}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages || totalPages === 0}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+                    <div className="bg-background rounded-lg p-3 border border-border/50 flex justify-between items-center mt-auto">
+                      <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Total Predicted</p>
+                      {record.predictedCount !== undefined && record.predictedCount !== null ? (
+                        <span className="text-lg font-bold text-foreground">{record.predictedCount} <span className="text-xs font-normal text-muted-foreground">accidents</span></span>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">N/A</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
+          )}
         </div>
+
       </div>
     </div>
   );
