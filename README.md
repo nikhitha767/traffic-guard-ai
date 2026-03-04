@@ -73,15 +73,23 @@ To connect a domain, navigate to Project > Settings > Domains and click Connect 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
 
 
-## Developer Guide: Setting up Environment & CSV
 
-Since this project handles sensitive data and large files, certain files (.env, .csv) are not uploaded to GitHub directly.
+## Developer Guide: Setting up Environment & Data Files
+
+Since this project handles sensitive data and large files, certain generated files, datasets, and configs are not uploaded to GitHub directly.
 
 However, for easy setup, we have compressed them into a single zip file included in this repository.
 
 ### Quick Setup for Developers:
 1. Please **[Download dataset_and_env.zip](./dataset_and_env.zip)** located in this project folder.
 2. Extract the contents.
-3. Place the extracted .env file and 	raffic_accidents1.csv file directly inside your local ackend/ folder.
-4. Run frontend (
-pm run dev) and backend app (python app.py). Everything will work magically!
+3. Place all the extracted files directly inside their corresponding directories in the `backend/` folder!
+   **Included files:**
+   - `.env`
+   - `traffic_accidents1.csv`
+   - `max_frequency.joblib`
+   - `model.joblib`
+   - `server.log`
+   - `services/__pycache__/supabase_service.cpython-313.pyc`
+   - `utils/__pycache__/auth.cpython-313.pyc`
+4. Run frontend (`npm run dev`) and backend app (`python backend/app.py`). Everything will work magically!
